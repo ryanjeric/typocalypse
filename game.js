@@ -1618,14 +1618,15 @@
   }
 
   function showSubWeaponChoiceScreen() {
+    const options = WEAPON_KEYS.filter((k) => k !== state.weapon && isWeaponUnlocked(k))
+      .map((k) => WEAPONS[k])
+      .sort(() => Math.random() - 0.5);
+    if (options.length === 0) return;
     state.screen = 'upgrade';
     state.upgradePhase = 'subWeaponSelect';
     dom.upgradeScreen.classList.remove('hidden');
     dom.upgradeTitle.textContent = 'SUB-WEAPON UNLOCK';
     dom.upgradeSubtitle.textContent = 'Main weapon maxed \u2014 choose a secondary weapon';
-    const options = WEAPON_KEYS.filter((k) => k !== state.weapon)
-      .map((k) => WEAPONS[k])
-      .sort(() => Math.random() - 0.5);
     window._upgradeChoices = options.slice(0, 3);
     dom.upgradeCards.innerHTML = '';
     options.slice(0, 3).forEach((w, i) => {
