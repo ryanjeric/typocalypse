@@ -47,9 +47,33 @@
       wordTyped: '#888888',
       wordTarget: '#ffffff',
     },
+    matrix: {
+      bg: '#0a0a0a',
+      gridR: 0, gridG: 255, gridB: 100,
+      accent: '#00ff64',
+      textDim: 'rgba(0,255,100,0.7)',
+      wordTyped: '#00ff64',
+      wordTarget: '#ffffff',
+    },
+    terminal: {
+      bg: '#1e1e1e',
+      gridR: 0, gridG: 255, gridB: 135,
+      accent: '#00ff87',
+      textDim: 'rgba(0,255,135,0.8)',
+      wordTyped: '#00ff87',
+      wordTarget: '#ffff00',
+    },
+    solar: {
+      bg: '#1a0f00',
+      gridR: 255, gridG: 120, gridB: 0,
+      accent: '#ff8800',
+      textDim: 'rgba(255,170,0,0.8)',
+      wordTyped: '#ffaa00',
+      wordTarget: '#fff5e6',
+    },
   };
 
-  const THEME_ORDER = ['dark', 'light', 'neon', 'retro', 'minimal'];
+  const THEME_ORDER = ['dark', 'light', 'neon', 'retro', 'minimal', 'matrix', 'terminal', 'solar'];
 
   let currentTheme = 'dark';
   let particleDensity = 1;
@@ -131,7 +155,7 @@
 
   function applyTheme(name) {
     currentTheme = name;
-    document.body.classList.remove('light-mode', 'neon-mode', 'retro-mode', 'minimal-mode');
+    document.body.classList.remove('light-mode', 'neon-mode', 'retro-mode', 'minimal-mode', 'matrix-mode', 'terminal-mode', 'solar-mode');
     if (name !== 'dark') document.body.classList.add(name + '-mode');
     localStorage.setItem('typocalypse-theme', name);
     updateThemeButtons();
@@ -433,6 +457,37 @@
 
   const WEAPON_KEYS = Object.keys(WEAPONS);
 
+  const WEAPON_UNLOCKS = {
+    bolt: null,
+    arc: { type: 'achievement', id: 'wave5' },
+    shrapnel: { type: 'achievement', id: 'wave8' },
+    venom: { type: 'achievement', id: 'wave10' },
+    pulse: { type: 'achievement', id: 'comboKing' },
+    ricochet: { type: 'achievement', id: 'bossSlayer' },
+  };
+
+  function isWeaponUnlocked(weaponKey) {
+    const u = WEAPON_UNLOCKS[weaponKey];
+    if (!u) return true;
+    const ls = loadLifetimeStats();
+    const ach = loadAchievements();
+    if (u.type === 'achievement') {
+      if (u.id === 'wave5') return (ls.bestWave || 0) >= 5;
+      if (u.id === 'wave8') return (ls.bestWave || 0) >= 8;
+      if (u.id === 'wave10') return (ls.bestWave || 0) >= 10;
+      if (u.id === 'comboKing') return !!ach.comboKing;
+      if (u.id === 'bossSlayer') return !!ach.bossSlayer;
+    }
+    return false;
+  }
+
+  function getWeaponUnlockLabel(weaponKey) {
+    const u = WEAPON_UNLOCKS[weaponKey];
+    if (!u) return '';
+    const labels = { wave5: 'Wave 5', wave8: 'Wave 8', wave10: 'Wave 10', comboKing: 'Combo King', bossSlayer: 'Boss Slayer' };
+    return labels[u.id] || u.id;
+  }
+
   // --- Streak titles ---
 
   const STREAK_TITLES = [
@@ -611,6 +666,9 @@
     speeder:    { color: '#c084fc', hp: 1, speed: 3.0, size: 10, sides: 3, scoreValue: 18 },
     regenerator: { color: '#10b981', hp: 2, speed: 0.6, size: 16, sides: 5, scoreValue: 25 },
     teleporter: { color: '#8b5cf6', hp: 2, speed: 1.0, size: 14, sides: 6, scoreValue: 28 },
+    berserker: { color: '#e11d48', hp: 3, speed: 1.0, size: 18, sides: 5, scoreValue: 35 },
+    miniboss: { color: '#dc2626', hp: 10, speed: 0.45, size: 26, sides: 6, scoreValue: 80 },
+    stealth: { color: '#6366f1', hp: 1, speed: 1.4, size: 12, sides: 4, scoreValue: 22 },
   };
 
   function getBossTypeForWave() {
@@ -832,6 +890,8 @@
 
   const ACHIEVEMENTS = [
     { id: 'firstBlood', icon: '\u{1F5E1}', label: 'FIRST BLOOD', desc: 'Get your first kill' },
+    { id: 'wave5', icon: '\u{1F4CA}', label: 'WAVE 5', desc: 'Reach wave 5' },
+    { id: 'wave8', icon: '\u{1F4CA}', label: 'WAVE 8', desc: 'Reach wave 8' },
     { id: 'wave10', icon: '\u{1F4CA}', label: 'WAVE 10', desc: 'Reach wave 10' },
     { id: 'bossSlayer', icon: '\u{1F525}', label: 'BOSS SLAYER', desc: 'Kill your first boss' },
     { id: 'weaponMaster', icon: '\u2694', label: 'WEAPON MASTER', desc: '50 kills with one weapon' },
@@ -870,6 +930,8 @@
     const ls = loadLifetimeStats();
     const unlocked = loadAchievements();
     if (!unlocked.firstBlood && (ls.totalKills || 0) >= 1) unlockAchievement('firstBlood');
+    if (!unlocked.wave5 && (ls.bestWave || 0) >= 5) unlockAchievement('wave5');
+    if (!unlocked.wave8 && (ls.bestWave || 0) >= 8) unlockAchievement('wave8');
     if (!unlocked.wave10 && (ls.bestWave || 0) >= 10) unlockAchievement('wave10');
     if (!unlocked.bossSlayer && (ls.bossKills || 0) >= 1) unlockAchievement('bossSlayer');
     const wKills = state.weaponKills || {};
@@ -1104,9 +1166,11 @@
     if (w >= 6 && roll < 0.26) return 'speeder';
     if (w >= 5 && roll < 0.36) return 'shielder';
     if (w >= 5 && roll < 0.46) return 'tank';
-    if (w >= 3 && roll < 0.58) return 'splitter';
-    if (w >= 3 && roll < 0.73) return 'scout';
-    if (w >= 4 && roll < 0.83) return 'swarm';
+    if (w >= 5 && roll < 0.54) return 'stealth';
+    if (w >= 4 && roll < 0.62) return 'berserker';
+    if (w >= 3 && roll < 0.70) return 'splitter';
+    if (w >= 3 && roll < 0.85) return 'scout';
+    if (w >= 4 && roll < 0.93) return 'swarm';
     return 'drone';
   }
 
@@ -1117,6 +1181,7 @@
     const diff = DIFFICULTY_PRESETS[state.difficulty || 'normal'];
     let word, shieldWord;
     const isBoss = type === 'boss' || type === 'bossTank' || type === 'bossSplitter' || type === 'bossShielded';
+    const isMiniboss = type === 'miniboss';
     if (isBoss) {
       word = getWord(WORDS_BOSS);
       if (type === 'bossShielded') {
@@ -1125,6 +1190,8 @@
         word = getWord(WORDS_BOSS, [shieldWord[0]]);
         if (!word || word[0] === shieldWord[0]) word = temp;
       }
+    } else if (isMiniboss) {
+      word = getWord(WORDS_BOSS);
     } else if (type === 'shielder') {
       shieldWord = getWord(WORDS_SHIELD);
       word = getWord(undefined, [shieldWord[0]]);
@@ -1158,8 +1225,12 @@
       enemy.teleportTimer = 0;
       enemy.teleportInterval = 3 + Math.random() * 2;
     }
+    if (type === 'berserker') {
+      enemy.baseSpeed = enemy.speed;
+    }
     enemies.push(enemy);
-    shockwaveRings.push({ x, y, radius: 5, maxRadius: isBossType(type) ? 80 : 40, life: 1, color: def.color, speed: isBossType(type) ? 150 : 80 });
+    const isBossOrMiniboss = isBossType(type) || isMiniboss;
+    shockwaveRings.push({ x, y, radius: 5, maxRadius: isBossOrMiniboss ? 80 : 40, life: 1, color: def.color, speed: isBossOrMiniboss ? 150 : 80 });
   }
 
   // --- Power drop spawning ---
@@ -1356,6 +1427,20 @@
         audio.bossSpawn();
         state.shakeAmount = 10;
       }, 2000);
+    } else if (state.wave % 3 === 0 && state.wave >= 3) {
+      setTimeout(() => {
+        if (state.screen !== 'playing') return;
+        spawnEnemy('miniboss');
+        const miniEl = document.createElement('div');
+        miniEl.className = 'wave-announce';
+        miniEl.textContent = 'MINI-BOSS';
+        miniEl.style.color = '#dc2626';
+        miniEl.style.textShadow = '0 0 30px rgba(220,38,38,0.6)';
+        document.body.appendChild(miniEl);
+        setTimeout(() => miniEl.remove(), 2000);
+        audio.bossSpawn();
+        state.shakeAmount = 6;
+      }, 1000);
     }
   }
 
@@ -1430,14 +1515,15 @@
   }
 
   function showSubWeaponChoiceScreen() {
+    const options = WEAPON_KEYS.filter((k) => k !== state.weapon && isWeaponUnlocked(k))
+      .map((k) => WEAPONS[k])
+      .sort(() => Math.random() - 0.5);
+    if (options.length === 0) return;
     state.screen = 'upgrade';
     state.upgradePhase = 'subWeaponSelect';
     dom.upgradeScreen.classList.remove('hidden');
     dom.upgradeTitle.textContent = 'SUB-WEAPON UNLOCK';
     dom.upgradeSubtitle.textContent = 'Main weapon maxed \u2014 choose a secondary weapon';
-    const options = WEAPON_KEYS.filter((k) => k !== state.weapon)
-      .map((k) => WEAPONS[k])
-      .sort(() => Math.random() - 0.5);
     window._upgradeChoices = options.slice(0, 3);
     dom.upgradeCards.innerHTML = '';
     options.slice(0, 3).forEach((w, i) => {
@@ -1574,23 +1660,28 @@
     dom.weaponCards.innerHTML = '';
     WEAPON_KEYS.forEach((key) => {
       const w = WEAPONS[key];
+      const unlocked = isWeaponUnlocked(key);
       const card = document.createElement('div');
-      card.className = 'weapon-card';
+      card.className = 'weapon-card' + (unlocked ? '' : ' weapon-card--locked');
       card.style.borderColor = w.color + '33';
+      const unlockLabel = unlocked ? '' : `<div class="weapon-card-unlock">Unlock: ${getWeaponUnlockLabel(key)}</div>`;
       card.innerHTML = `
         <div class="weapon-card-icon">${w.icon}</div>
         <div class="weapon-card-name" style="color:${w.color}">${w.name}</div>
         <div class="weapon-card-desc">${w.desc}</div>
-        <div class="weapon-card-mechanic" style="border:1px solid ${w.color}55;color:${w.color}">${w.mechanic}</div>`;
-      card.addEventListener('mouseenter', () => {
-        card.style.borderColor = w.color;
-        card.style.boxShadow = `0 0 35px ${w.color}44`;
-      });
-      card.addEventListener('mouseleave', () => {
-        card.style.borderColor = w.color + '33';
-        card.style.boxShadow = 'none';
-      });
-      card.addEventListener('click', () => selectWeapon(key));
+        <div class="weapon-card-mechanic" style="border:1px solid ${w.color}55;color:${w.color}">${w.mechanic}</div>
+        ${unlockLabel}`;
+      if (unlocked) {
+        card.addEventListener('mouseenter', () => {
+          card.style.borderColor = w.color;
+          card.style.boxShadow = `0 0 35px ${w.color}44`;
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.borderColor = w.color + '33';
+          card.style.boxShadow = 'none';
+        });
+        card.addEventListener('click', () => selectWeapon(key));
+      }
       dom.weaponCards.appendChild(card);
     });
   }
@@ -2025,13 +2116,14 @@
       }
     }
     const def = ENEMY_TYPES[enemy.type];
-    spawnParticles(enemy.x, enemy.y, enemy.color, isBossType(enemy.type) ? 50 : 20, isBossType(enemy.type) ? 8 : 5);
-    state.shakeAmount = isBossType(enemy.type) ? 12 : 4;
+    const isBossOrMiniboss = isBossType(enemy.type) || enemy.type === 'miniboss';
+    spawnParticles(enemy.x, enemy.y, enemy.color, isBossOrMiniboss ? 50 : 20, isBossOrMiniboss ? 8 : 5);
+    state.shakeAmount = isBossOrMiniboss ? 12 : 4;
     state.combo++; state.comboTimer = 3;
     state.maxCombo = Math.max(state.maxCombo, state.combo);
     state.enemiesKilled = (state.enemiesKilled || 0) + 1;
-    if (isBossType(enemy.type)) state.bossKills = (state.bossKills || 0) + 1;
-    state.exp = (state.exp || 0) + (isBossType(enemy.type) ? 2 : 1);
+    if (isBossOrMiniboss) state.bossKills = (state.bossKills || 0) + 1;
+    state.exp = (state.exp || 0) + (isBossOrMiniboss ? 2 : 1);
     if (state.exp >= (state.expToNextLevel || 5)) {
       state.level = (state.level || 1) + 1;
       state.exp = 0;
@@ -2060,7 +2152,7 @@
     spawnFloatingText(enemy.x, enemy.y - 20, `+${score}`, '#00f0ff');
     spawnOrbs(enemy.x, enemy.y, score * 0.1, enemy.color);
 
-    if (isBossType(enemy.type)) {
+    if (isBossOrMiniboss) {
       audio.bossKill();
       shockwaveRings.push({ x: enemy.x, y: enemy.y, radius: 10, maxRadius: 300, life: 1, color: '#ff2d55', speed: 400 });
       const announce = document.createElement('div');
@@ -2708,24 +2800,25 @@
   function drawEnemy(e) {
     const t = performance.now() / 1000, th = getTheme();
     const pulse = 1 + Math.sin(e.pulsePhase + t * 3) * 0.08, size = e.size * pulse, alpha = e.spawnAlpha;
+    const effectiveAlpha = alpha * (e.stealthAlpha ?? 1);
     const frozen = state.freezeTimer > 0;
     const drawColor = frozen ? desaturate(e.color, 0.4) : e.color;
 
     // Speeder motion trail
-    if (e.type === 'speeder' && alpha > 0.5) {
+    if (e.type === 'speeder' && effectiveAlpha > 0.5) {
       for (let i = 1; i <= 3; i++) {
         const dx = player.x - e.x, dy = player.y - e.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
         const tx = e.x - (dx / dist) * i * 12;
         const ty = e.y - (dy / dist) * i * 12;
-        drawPolygon(tx, ty, size * (1 - i * 0.15), e.sides, e.angle - i * 0.3, drawColor, alpha * (0.3 - i * 0.08));
+        drawPolygon(tx, ty, size * (1 - i * 0.15), e.sides, e.angle - i * 0.3, drawColor, effectiveAlpha * (0.3 - i * 0.08));
       }
     }
 
-    drawPolygon(e.x, e.y, size, e.sides, e.angle, drawColor, alpha);
+    drawPolygon(e.x, e.y, size, e.sides, e.angle, drawColor, effectiveAlpha);
 
     // Miss flash — red glow when player types wrong letter
-    if (e.missFlashTimer > 0 && alpha > 0.5) {
+    if (e.missFlashTimer > 0 && effectiveAlpha > 0.5) {
       ctx.save();
       ctx.globalAlpha = e.missFlashTimer * 0.8;
       ctx.strokeStyle = '#ef4444';
@@ -2739,8 +2832,8 @@
     }
 
     // Boss extra rings
-    if (e.type === 'boss' && alpha > 0.5) {
-      ctx.save(); ctx.globalAlpha = alpha * 0.4;
+    if (e.type === 'boss' && effectiveAlpha > 0.5) {
+      ctx.save(); ctx.globalAlpha = effectiveAlpha * 0.4;
       ctx.strokeStyle = '#ff2d55'; ctx.lineWidth = 1.5; ctx.shadowColor = '#ff2d55'; ctx.shadowBlur = 15;
       ctx.beginPath(); ctx.arc(e.x, e.y, size + 10 + Math.sin(t * 2) * 3, 0, Math.PI * 2); ctx.stroke();
       ctx.beginPath(); ctx.arc(e.x, e.y, size + 18 + Math.sin(t * 3) * 2, t, t + Math.PI * 1.5); ctx.stroke();
@@ -2748,8 +2841,8 @@
     }
 
     // Shielder hex barrier
-    if ((e.type === 'shielder' || e.type === 'bossShielded') && e.shieldActive && alpha > 0.5) {
-      ctx.save(); ctx.globalAlpha = alpha * (0.5 + Math.sin(t * 4) * 0.15);
+    if ((e.type === 'shielder' || e.type === 'bossShielded') && e.shieldActive && effectiveAlpha > 0.5) {
+      ctx.save(); ctx.globalAlpha = effectiveAlpha * (0.5 + Math.sin(t * 4) * 0.15);
       ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 12;
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
@@ -2761,20 +2854,21 @@
       ctx.closePath(); ctx.stroke(); ctx.restore();
     }
 
-    if (frozen && alpha > 0.5) {
-      ctx.save(); ctx.globalAlpha = alpha * 0.3;
+    if (frozen && effectiveAlpha > 0.5) {
+      ctx.save(); ctx.globalAlpha = effectiveAlpha * 0.3;
       ctx.strokeStyle = '#67e8f9'; ctx.lineWidth = 1; ctx.shadowColor = '#67e8f9'; ctx.shadowBlur = 8;
       ctx.beginPath(); ctx.arc(e.x, e.y, size + 6, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
     }
 
-    // HP bar -- boss gets multi-segment, others get standard
-    if (e.maxHp > 1 && alpha > 0.5) {
-      const bw = e.type === 'boss' ? 60 : 30, bh = e.type === 'boss' ? 5 : 3;
+    // HP bar -- boss/miniboss get wider bar, others get standard
+    if (e.maxHp > 1 && effectiveAlpha > 0.5) {
+      const isBossOrMiniboss = isBossType(e.type) || e.type === 'miniboss';
+      const bw = isBossOrMiniboss ? 50 : 30, bh = isBossOrMiniboss ? 4 : 3;
       const ratio = Math.max(0, e.hp / e.maxHp);
-      ctx.save(); ctx.globalAlpha = alpha;
+      ctx.save(); ctx.globalAlpha = effectiveAlpha;
       ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(e.x - bw / 2, e.y + e.size + 18, bw, bh);
       ctx.fillStyle = drawColor; ctx.fillRect(e.x - bw / 2, e.y + e.size + 18, bw * ratio, bh);
-      if (e.type === 'boss') {
+      if (isBossType(e.type)) {
         const segs = 5;
         ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1;
         for (let i = 1; i < segs; i++) {
@@ -2784,10 +2878,10 @@
       }
       ctx.restore();
     }
-    if (alpha < 0.3) return;
+    if (effectiveAlpha < 0.3) return;
 
     // Word display (shielder shows shield word if active)
-    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.save(); ctx.globalAlpha = effectiveAlpha;
     ctx.font = '14px "Share Tech Mono", monospace'; ctx.textAlign = 'center';
 
     const clusterRadius = 70;
@@ -3190,7 +3284,8 @@
   let lastTime = performance.now();
 
   function gameLoop(now) {
-    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    const rawDt = (now - lastTime) / 1000;
+    const dt = Math.max(0.001, Math.min(rawDt, 0.05));
     lastTime = now;
 
     const th = getTheme();
@@ -3256,7 +3351,11 @@
       // Spawning
       if (state.waveActive && state.waveEnemiesLeft > 0) {
         state.spawnTimer -= dt;
-        if (state.spawnTimer <= 0) { spawnEnemy(); state.waveEnemiesLeft--; state.spawnTimer = state.spawnInterval; }
+        while (state.spawnTimer <= 0 && state.waveEnemiesLeft > 0) {
+          spawnEnemy();
+          state.waveEnemiesLeft--;
+          state.spawnTimer += state.spawnInterval;
+        }
       }
       if (state.waveActive && state.waveEnemiesLeft <= 0 && enemies.filter((e) => e.hp > 0).length === 0) {
         state.waveActive = false;
@@ -3267,6 +3366,10 @@
       enemies.forEach((e) => {
         if (e.spawnAlpha < 1) e.spawnAlpha = Math.min(1, e.spawnAlpha + dt * 4);
         if (e.missFlashTimer > 0) e.missFlashTimer -= dt;
+        if (e.type === 'stealth') {
+          const d = Math.hypot(player.x - e.x, player.y - e.y);
+          e.stealthAlpha = d > 180 ? 0.15 : d < 80 ? 1 : 0.15 + 0.85 * (1 - (d - 80) / 100);
+        }
       });
 
       // Move enemies (skip if frozen)
@@ -3293,6 +3396,16 @@
               spawnParticles(e.x, e.y, '#8b5cf6', 8, 3);
             }
           }
+          if (e.type === 'berserker' && e.baseSpeed !== undefined) {
+            const hpRatio = e.hp / e.maxHp;
+            if (hpRatio < 0.5) {
+              e.speed = e.baseSpeed * 1.6;
+              e.berserkerDamageMult = 2;
+            } else {
+              e.speed = e.baseSpeed;
+              e.berserkerDamageMult = 1;
+            }
+          }
           const dx = player.x - e.x, dy = player.y - e.y, dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > 1) {
             let speedMult = state.enemySlowFactor * (state.enemySpeedCurse || 1);
@@ -3317,9 +3430,10 @@
             spawnFloatingText(player.x, player.y - 40, 'SHIELD!', '#22d3ee');
             audio.play(800, 0.15, 'sine', 0.06);
           } else {
-            state.hp -= 10;
+            const dmg = Math.round((e.berserkerDamageMult || 1) * 10);
+            state.hp -= dmg;
             state.shakeAmount = 8;
-            spawnFloatingText(player.x, player.y - 40, '-10 HP', '#ef4444');
+            spawnFloatingText(player.x, player.y - 40, `-${dmg} HP`, '#ef4444');
             audio.hit();
           }
           spawnParticles(e.x, e.y, '#ef4444', 10, 3);

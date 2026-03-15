@@ -116,6 +116,66 @@ body.minimal-mode {
   --accent-glow: rgba(255, 255, 255, 0.25);
 }
 
+body.matrix-mode {
+  --bg: #0a0a0a;
+  --bg-grad-start: #0d0d0d;
+  --text: #00ff64;
+  --text-dim: rgba(0, 255, 100, 0.7);
+  --grid-r: 0;
+  --grid-g: 255;
+  --grid-b: 100;
+  --hud-bg-r: 10;
+  --hud-bg-g: 10;
+  --hud-bg-b: 10;
+  --card-border: rgba(0, 255, 100, 0.3);
+  --card-bg: rgba(0, 255, 100, 0.05);
+  --card-hover-bg: rgba(0, 255, 100, 0.15);
+  --muted: #00aa44;
+  --muted2: #00cc55;
+  --accent: #00ff64;
+  --accent-glow: rgba(0, 255, 100, 0.4);
+}
+
+body.terminal-mode {
+  --bg: #1e1e1e;
+  --bg-grad-start: #252525;
+  --text: #00ff87;
+  --text-dim: rgba(0, 255, 135, 0.8);
+  --grid-r: 0;
+  --grid-g: 255;
+  --grid-b: 135;
+  --hud-bg-r: 30;
+  --hud-bg-g: 30;
+  --hud-bg-b: 30;
+  --card-border: rgba(0, 255, 135, 0.3);
+  --card-bg: rgba(0, 255, 135, 0.05);
+  --card-hover-bg: rgba(0, 255, 135, 0.15);
+  --muted: #00aa66;
+  --muted2: #00cc77;
+  --accent: #00ff87;
+  --accent-glow: rgba(0, 255, 135, 0.4);
+}
+
+body.solar-mode {
+  --bg: #1a0f00;
+  --bg-grad-start: #251500;
+  --text: #ffaa00;
+  --text-dim: rgba(255, 170, 0, 0.8);
+  --grid-r: 255;
+  --grid-g: 120;
+  --grid-b: 0;
+  --hud-bg-r: 26;
+  --hud-bg-g: 15;
+  --hud-bg-b: 0;
+  --card-border: rgba(255, 136, 0, 0.3);
+  --card-bg: rgba(255, 136, 0, 0.05);
+  --card-hover-bg: rgba(255, 136, 0, 0.15);
+  --muted: #cc7700;
+  --muted2: #dd8800;
+  --accent: #ff8800;
+  --accent-glow: rgba(255, 136, 0, 0.4);
+}
+
 #game-canvas {
   position: fixed;
   top: 0;
@@ -913,6 +973,24 @@ body.light-mode .exp-progress {
   padding: 0.3em 0.8em;
   border-radius: 10px;
   display: inline-block;
+}
+
+.weapon-card--locked {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.weapon-card--locked:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.weapon-card-unlock {
+  font-size: 0.7rem;
+  color: var(--muted);
+  margin-top: 0.5em;
+  letter-spacing: 0.1em;
 }
 
 /* HUD weapon name */
