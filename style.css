@@ -487,6 +487,45 @@ body.reduced-motion * {
   margin: 0.2em 0;
 }
 
+.pause-loadout {
+  margin: 1em 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75em;
+}
+
+.pause-loadout-weapons {
+  display: flex;
+  gap: 1em;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pause-weapon {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.pause-weapon--sub {
+  opacity: 0.9;
+}
+
+.pause-loadout-upgrades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  justify-content: center;
+}
+
+.pause-loadout-upgrades .upg-icon {
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+}
+
 .boss-health-container {
   display: flex;
   align-items: center;

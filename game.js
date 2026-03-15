@@ -551,8 +551,8 @@
         { id: 'boltSpeed2', icon: '\u26A1', name: 'LIGHTNING ROUNDS', desc: '+35% projectile speed', apply: makeApply((s) => { s.projectileSpeed *= 1.35; }) },
       ],
       multishot: [
-        { id: 'boltMulti1', icon: '\u{1F52B}', name: 'DOUBLE TAP', desc: '+1 extra projectile on kill', apply: makeApply((s) => { s.extraProjectiles += 1; }) },
-        { id: 'boltMulti2', icon: '\u{1F52B}', name: 'TRIPLE TAP', desc: '+2 extra projectiles on kill', apply: makeApply((s) => { s.extraProjectiles += 2; }) },
+        { id: 'boltMulti1', icon: '\u{1F52B}', name: 'DOUBLE TAP', desc: '+1 extra projectile on kill', apply: makeApply((s) => { s.extraProjectiles = Math.min(EXTRA_PROJECTILES_MAX, (s.extraProjectiles || 0) + 1); }) },
+        { id: 'boltMulti2', icon: '\u{1F52B}', name: 'TRIPLE TAP', desc: '+2 extra projectiles on kill', apply: makeApply((s) => { s.extraProjectiles = Math.min(EXTRA_PROJECTILES_MAX, (s.extraProjectiles || 0) + 2); }) },
       ],
     },
     arc: {
@@ -639,10 +639,10 @@
     { id: 'regen', icon: '\u2728', name: 'NANO REPAIR', desc: 'Regenerate 1 HP every 3 seconds', apply: makeApply((s) => { s.regenRate += 1; }) },
     { id: 'xp', icon: '\u2B06', name: 'DATA HARVEST', desc: '+25% score multiplier', apply: makeApply((s) => { s.scoreMultiplier *= 1.25; }) },
     { id: 'blast', icon: '\u{1F4A5}', name: 'SHOCKWAVE', desc: 'Kill explosions push enemies back', apply: makeApply((s) => { s.knockbackForce += 80; }) },
-    { id: 'slow', icon: '\u2744', name: 'CRYO FIELD', desc: 'Enemies move 15% slower', apply: makeApply((s) => { s.enemySlowFactor *= 0.85; }) },
+    { id: 'slow', icon: '\u2744', name: 'CRYO FIELD', desc: 'Enemies move 15% slower', apply: makeApply((s) => { s.enemySlowFactor = Math.max(ENEMY_SLOW_FLOOR, (s.enemySlowFactor || 1) * 0.85); }) },
     { id: 'critical', icon: '\u{1F3AF}', name: 'PRECISION', desc: '20% chance of double damage', apply: makeApply((s) => { s.critChance = Math.min(0.8, s.critChance + 0.2); }) },
-    { id: 'magnet', icon: '\u{1F9F2}', name: 'WORD MAGNET', desc: 'Shorter words spawn more often', apply: makeApply((s) => { s.easyWordBias += 0.15; }) },
-    { id: 'multishot', icon: '\u{1F52B}', name: 'MULTISHOT', desc: 'Fire 2 extra projectiles on kill', apply: makeApply((s) => { s.extraProjectiles += 2; }) },
+    { id: 'magnet', icon: '\u{1F9F2}', name: 'WORD MAGNET', desc: 'Shorter words spawn more often', apply: makeApply((s) => { s.easyWordBias = Math.min(EASY_WORD_BIAS_MAX, (s.easyWordBias || 0) + 0.15); }) },
+    { id: 'multishot', icon: '\u{1F52B}', name: 'MULTISHOT', desc: 'Fire 2 extra projectiles on kill', apply: makeApply((s) => { s.extraProjectiles = Math.min(EXTRA_PROJECTILES_MAX, (s.extraProjectiles || 0) + 2); }) },
     { id: 'autoTyper', icon: '\u{1F916}', name: 'TYPING DRONE', desc: 'A drone auto-types the nearest short word every 5s', apply: makeApply((s) => { s.autoTyperCount = Math.min(2, (s.autoTyperCount || 0) + 1); }) },
     { id: 'powerupHeal', icon: '\u{2764}', name: 'HEAL +40', desc: 'Instant heal', apply: makeApply((s) => { s.hp = Math.min(s.maxHp, s.hp + 40); }) },
     { id: 'powerupShield', icon: '\u{1F6E1}', name: 'SHIELD x3', desc: 'Gain 3 shield hits', apply: makeApply((s) => { s.shieldHits += 3; }) },
@@ -666,10 +666,10 @@
     { id: 'regen', icon: '\u2728', name: 'NANO REPAIR', desc: 'Regenerate 1 HP every 3 seconds', apply: (s) => { s.regenRate += 1; } },
     { id: 'xp', icon: '\u2B06', name: 'DATA HARVEST', desc: '+25% score multiplier', apply: (s) => { s.scoreMultiplier *= 1.25; } },
     { id: 'blast', icon: '\u{1F4A5}', name: 'SHOCKWAVE', desc: 'Kill explosions push enemies back', apply: (s) => { s.knockbackForce += 80; } },
-    { id: 'slow', icon: '\u2744', name: 'CRYO FIELD', desc: 'Enemies move 15% slower', apply: (s) => { s.enemySlowFactor *= 0.85; } },
+    { id: 'slow', icon: '\u2744', name: 'CRYO FIELD', desc: 'Enemies move 15% slower', apply: (s) => { s.enemySlowFactor = Math.max(ENEMY_SLOW_FLOOR, (s.enemySlowFactor || 1) * 0.85); } },
     { id: 'critical', icon: '\u{1F3AF}', name: 'PRECISION', desc: '20% chance of double damage', apply: (s) => { s.critChance = Math.min(0.8, s.critChance + 0.2); } },
-    { id: 'magnet', icon: '\u{1F9F2}', name: 'WORD MAGNET', desc: 'Shorter words spawn more often', apply: (s) => { s.easyWordBias += 0.15; } },
-    { id: 'multishot', icon: '\u{1F52B}', name: 'MULTISHOT', desc: 'Fire 2 extra projectiles on kill', apply: (s) => { s.extraProjectiles += 2; } },
+    { id: 'magnet', icon: '\u{1F9F2}', name: 'WORD MAGNET', desc: 'Shorter words spawn more often', apply: (s) => { s.easyWordBias = Math.min(EASY_WORD_BIAS_MAX, (s.easyWordBias || 0) + 0.15); } },
+    { id: 'multishot', icon: '\u{1F52B}', name: 'MULTISHOT', desc: 'Fire 2 extra projectiles on kill', apply: (s) => { s.extraProjectiles = Math.min(EXTRA_PROJECTILES_MAX, (s.extraProjectiles || 0) + 2); } },
     { id: 'autoTyper', icon: '\u{1F916}', name: 'TYPING DRONE', desc: 'A drone auto-types the nearest short word every 5s', apply: (s) => { s.autoTyperCount = Math.min(2, (s.autoTyperCount || 0) + 1); } },
     { id: 'arcChain', weapon: 'arc', icon: '\u26A1', name: 'ARC EXTENSION', desc: '+50% chain range', apply: (s) => { s.arcChainRange = (s.arcChainRange || 1) * 1.5; } },
     { id: 'arcBounces', weapon: 'arc', icon: '\u26D3', name: 'CHAIN REACTOR', desc: '+1 chain bounce', apply: (s) => { s.arcChainBounces = (s.arcChainBounces || 0) + 1; } },
@@ -773,6 +773,17 @@
 
   let W, H;
   const CAMERA_ZOOM = 1.0;
+  const RICOCHET_MAX_BOUNCE_RANGE = 200;
+  const ARC_MAX_CHAIN_RANGE = 320;
+  const VENOM_MAX_POOL_RADIUS = 120;
+  const PULSE_MAX_RADIUS = 280;
+  const CHAIN_DAMAGE_MAX = 45;
+  const KNOCKBACK_FORCE_MAX = 150;
+  const EXTRA_PROJECTILES_MAX = 6;
+  const VENOM_POOL_DURATION_MAX = 8;
+  const SHRAPNEL_COUNT_MAX = 12;
+  const ENEMY_SLOW_FLOOR = 0.3;
+  const EASY_WORD_BIAS_MAX = 0.6;
   const resize = () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; };
   window.addEventListener('resize', resize);
   resize();
@@ -1996,7 +2007,6 @@
   }
 
   const SUB_WEAPON_DAMAGE_MULT = 0.6;
-  const RICOCHET_MAX_BOUNCE_RANGE = 200;
 
   function fireWeapon(enemy) {
     const w = state.weapon;
@@ -2049,7 +2059,7 @@
       target: enemy, color: '#a78bfa', damage: 1, source: 'weapon', precomputed,
     });
 
-    const chainRange = 200 * (state.arcChainRange || 1);
+    const chainRange = Math.min(ARC_MAX_CHAIN_RANGE, 200 * (state.arcChainRange || 1));
     const maxBounces = 2 + (state.arcChainBounces || 0);
     const chainTargets = enemies
       .filter((e) => e !== enemy && e.hp > 0 && Math.hypot(e.x - enemy.x, e.y - enemy.y) < chainRange)
@@ -2077,7 +2087,7 @@
     const baseAngle = Math.atan2(enemy.y - player.y, enemy.x - player.x);
     const spread = (Math.PI / 6) * (state.shrapnelSpread || 1);
     const spd = 10 * state.projectileSpeed;
-    const count = 5 + (state.shrapnelCount || 0);
+    const count = Math.min(SHRAPNEL_COUNT_MAX, 5 + (state.shrapnelCount || 0));
     for (let i = 0; i < count; i++) {
       const offset = (i - (count - 1) / 2) * (spread / 2);
       const a = baseAngle + offset + (Math.random() - 0.5) * 0.05;
@@ -2106,7 +2116,7 @@
 
   // Pulse Nova — expanding damage ring, damage when ring reaches each enemy
   function firePulseNova(enemy) {
-    const maxRadius = 160 * (state.pulseRadius || 1);
+    const maxRadius = Math.min(PULSE_MAX_RADIUS, 160 * (state.pulseRadius || 1));
     const pulseSpeed = 350 * (state.pulseSpeedMult || 1);
     const damageTargets = [];
     enemies.forEach((e) => {
@@ -2149,7 +2159,7 @@
     projectiles.push({
       x: dx, y: dy, vx: Math.cos(a) * 14, vy: Math.sin(a) * 14,
       target: enemy, life: 3, color: '#f472b6',
-      damage: 1, source: 'weapon', precomputed: { isCrit, mult },
+      damage: 1, source: 'drone', precomputed: { isCrit, mult },
     });
   }
 
@@ -2382,46 +2392,49 @@
     }
     state.wordsTyped++;
 
-    if (state.knockbackForce > 0 || state.bombTimer > 0) {
-      const bombRadius = state.bombTimer > 0 ? 180 : 200;
-      const bombDamage = state.bombTimer > 0 ? 50 : 0;
-      shockwaveRings.push({ x: enemy.x, y: enemy.y, radius: 10, maxRadius: bombRadius, life: 1, color: state.bombTimer > 0 ? '#f97316' : '#fbbf24', speed: 300 });
-      if (bombDamage > 0) {
+    if (source !== 'drone') {
+      if (state.knockbackForce > 0 || state.bombTimer > 0) {
+        const bombRadius = state.bombTimer > 0 ? 180 : 200;
+        const bombDamage = state.bombTimer > 0 ? 50 : 0;
+        shockwaveRings.push({ x: enemy.x, y: enemy.y, radius: 10, maxRadius: bombRadius, life: 1, color: state.bombTimer > 0 ? '#f97316' : '#fbbf24', speed: 300 });
+        if (bombDamage > 0) {
+          enemies.forEach((e) => {
+            if (e === enemy || e.hp <= 0) return;
+            const d = Math.hypot(e.x - enemy.x, e.y - enemy.y);
+            if (d < bombRadius) { e.hp -= bombDamage; spawnParticles(e.x, e.y, '#f97316', 5, 2); if (e.hp <= 0) killEnemy(e); }
+          });
+        }
+      }
+
+      if (state.knockbackForce > 0) {
         enemies.forEach((e) => {
           if (e === enemy || e.hp <= 0) return;
-          const d = Math.hypot(e.x - enemy.x, e.y - enemy.y);
-          if (d < bombRadius) { e.hp -= bombDamage; spawnParticles(e.x, e.y, '#f97316', 5, 2); if (e.hp <= 0) killEnemy(e); }
+          const dx = e.x - enemy.x, dy = e.y - enemy.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 200 && d > 0) { const force = Math.min(KNOCKBACK_FORCE_MAX, state.knockbackForce); const f = force / d; e.x += dx * f; e.y += dy * f; }
         });
       }
-    }
 
-    if (state.knockbackForce > 0) {
-      enemies.forEach((e) => {
-        if (e === enemy || e.hp <= 0) return;
-        const dx = e.x - enemy.x, dy = e.y - enemy.y, d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 200 && d > 0) { const f = state.knockbackForce / d; e.x += dx * f; e.y += dy * f; }
-      });
-    }
-
-    if (state.chainDamage > 0) {
-      enemies.forEach((e) => {
-        if (e === enemy || e.hp <= 0) return;
-        const dx = e.x - enemy.x, dy = e.y - enemy.y, d = Math.sqrt(dx * dx + dy * dy);
-        if (d < 150) { e.hp -= state.chainDamage; spawnParticles(e.x, e.y, '#fbbf24', 5, 2); spawnLightningArc(enemy.x, enemy.y, e.x, e.y, '#fbbf24'); if (e.hp <= 0) killEnemy(e); }
-      });
-    }
-
-    if (state.extraProjectiles > 0) {
-      const nearby = enemies.filter((e) => e !== enemy && e.hp > 0).sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y) - Math.hypot(b.x - enemy.x, b.y - enemy.y)).slice(0, state.extraProjectiles);
-      nearby.forEach((e) => {
-        const a = Math.atan2(e.y - enemy.y, e.x - enemy.x), spd = 10 * state.projectileSpeed;
-        const precomputed = computeDamageMult(e);
-        projectiles.push({
-          x: enemy.x, y: enemy.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
-          target: e, life: 2, color: '#fbbf24', type: 'bolt',
-          damage: 1, source: 'weapon', precomputed,
+      if (state.chainDamage > 0) {
+        enemies.forEach((e) => {
+          if (e === enemy || e.hp <= 0) return;
+          const dx = e.x - enemy.x, dy = e.y - enemy.y, d = Math.sqrt(dx * dx + dy * dy);
+          if (d < 150) { const dmg = Math.min(CHAIN_DAMAGE_MAX, state.chainDamage); e.hp -= dmg; spawnParticles(e.x, e.y, '#fbbf24', 5, 2); spawnLightningArc(enemy.x, enemy.y, e.x, e.y, '#fbbf24'); if (e.hp <= 0) killEnemy(e); }
         });
-      });
+      }
+
+      if (state.extraProjectiles > 0) {
+        const cap = Math.min(EXTRA_PROJECTILES_MAX, state.extraProjectiles);
+        const nearby = enemies.filter((e) => e !== enemy && e.hp > 0).sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y) - Math.hypot(b.x - enemy.x, b.y - enemy.y)).slice(0, cap);
+        nearby.forEach((e) => {
+          const a = Math.atan2(e.y - enemy.y, e.x - enemy.x), spd = 10 * state.projectileSpeed;
+          const precomputed = computeDamageMult(e);
+          projectiles.push({
+            x: enemy.x, y: enemy.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+            target: e, life: 2, color: '#fbbf24', type: 'bolt',
+            damage: 1, source: 'weapon', precomputed,
+          });
+        });
+      }
     }
 
     enemy.hp = -999;
@@ -2784,8 +2797,10 @@
             fireWeapon(te);
             handleWordCompletionEffects(completedWord);
             state.currentInput = '';
-            te.word = getWord();
-            te.typedIndex = 0;
+            if (te.hp > 1) {
+              te.word = getWord();
+              te.typedIndex = 0;
+            }
           }
         } else if (!tryAcquireNewTarget(key, te, null, null, null)) {
           state.keysMissed++;
@@ -2933,6 +2948,30 @@
       <div class="pause-stat-row">Wave ${state.wave} · Score ${state.score.toLocaleString()}</div>
       <div class="pause-stat-row">Time ${m}:${String(s).padStart(2, '0')} · WPM ${wpm}</div>
     `;
+    const loadoutEl = document.getElementById('pause-loadout');
+    if (loadoutEl) {
+      const wDef = WEAPONS[state.weapon];
+      let html = `<div class="pause-loadout-weapons">`;
+      if (wDef) {
+        html += `<span class="pause-weapon" style="color:${wDef.color}" title="${wDef.name}">${wDef.icon} ${wDef.name}</span>`;
+      }
+      if (state.subWeapon && WEAPONS[state.subWeapon]) {
+        const sw = WEAPONS[state.subWeapon];
+        html += `<span class="pause-weapon pause-weapon--sub" style="color:${sw.color}99" title="Sub: ${sw.name}">${sw.icon} ${sw.name}</span>`;
+      }
+      html += `</div>`;
+      const counts = {};
+      state.upgrades.forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+      html += `<div class="pause-loadout-upgrades">`;
+      Object.keys(counts).forEach((id) => {
+        const upg = getUpgradeById(id);
+        if (!upg) return;
+        const badge = counts[id] > 1 ? `<span class="upg-badge">x${counts[id]}</span>` : '';
+        html += `<div class="upg-icon" title="${upg.name}">${upg.icon}${badge}</div>`;
+      });
+      html += `</div>`;
+      loadoutEl.innerHTML = html;
+    }
   }
 
   function togglePause() {
@@ -3981,14 +4020,14 @@
           if (Math.random() < 0.3) spawnParticles(p.x, p.y, p.color, 1, 0.5);
         } else if (p.type === 'venom') {
           if (p.target && p.target.hp > 0 && Math.hypot(p.target.x - p.x, p.target.y - p.y) < 25) {
-            const r = 55 * (state.venomPoolRadius || 1);
-            const dur = 3 + (state.venomPoolDuration || 0);
+            const r = Math.min(VENOM_MAX_POOL_RADIUS, 55 * (state.venomPoolRadius || 1));
+            const dur = Math.min(VENOM_POOL_DURATION_MAX, 3 + (state.venomPoolDuration || 0));
             poisonPools.push({ x: p.x, y: p.y, radius: r, life: dur, maxLife: dur, dotTimer: 0, color: '#4ade80' });
             spawnParticles(p.x, p.y, '#4ade80', 12, 3);
             p.life = -1;
           } else if (!p.target || p.target.hp <= 0) {
-            const r = 55 * (state.venomPoolRadius || 1);
-            const dur = 3 + (state.venomPoolDuration || 0);
+            const r = Math.min(VENOM_MAX_POOL_RADIUS, 55 * (state.venomPoolRadius || 1));
+            const dur = Math.min(VENOM_POOL_DURATION_MAX, 3 + (state.venomPoolDuration || 0));
             poisonPools.push({ x: p.x, y: p.y, radius: r, life: dur, maxLife: dur, dotTimer: 0, color: '#4ade80' });
             spawnParticles(p.x, p.y, '#4ade80', 12, 3);
             p.life = -1;
