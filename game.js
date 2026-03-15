@@ -1810,8 +1810,11 @@
     { title: 'COLLECT DROPS', text: 'Defeated enemies may drop power-ups. Type the word on the drop to activate it. Clear waves to choose upgrades.' },
   ];
 
-  function showTutorialOverlay() {
-    if (localStorage.getItem('typocalypse-tutorial-done')) return;
+  function showTutorialOverlay(onFinish) {
+    if (localStorage.getItem('typocalypse-tutorial-done')) {
+      if (onFinish) onFinish();
+      return;
+    }
     let step = 0;
     const overlay = document.createElement('div');
     overlay.className = 'tutorial-overlay';
@@ -1837,6 +1840,7 @@
     const finish = () => {
       localStorage.setItem('typocalypse-tutorial-done', '1');
       overlay.remove();
+      if (onFinish) onFinish();
     };
     document.getElementById('tutorial-skip')?.addEventListener('click', finish);
     document.getElementById('tutorial-next')?.addEventListener('click', () => {
@@ -1859,9 +1863,11 @@
     dom.weaponScreen.classList.add('hidden');
     dom.hud.classList.remove('hidden');
     state.screen = 'playing';
-    startWave();
-    showTutorialOverlay();
-    audio.waveStart();
+    const beginPlay = () => {
+      startWave();
+      audio.waveStart();
+    };
+    showTutorialOverlay(beginPlay);
   }
 
   function showGameOver() {
@@ -1990,6 +1996,7 @@
   }
 
   const SUB_WEAPON_DAMAGE_MULT = 0.6;
+  const RICOCHET_MAX_BOUNCE_RANGE = 200;
 
   function fireWeapon(enemy) {
     const w = state.weapon;
@@ -4009,7 +4016,7 @@
               p.damageMult *= (state.ricochetBounceMult || 0.7);
               audio.ricochetBounce();
               const next = enemies
-                .filter((e) => e.hp > 0 && !p.hitEnemies.has(e))
+                .filter((e) => e.hp > 0 && !p.hitEnemies.has(e) && Math.hypot(e.x - p.x, e.y - p.y) <= RICOCHET_MAX_BOUNCE_RANGE)
                 .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
               if (next) {
                 const a = Math.atan2(next.y - p.y, next.x - p.x);
