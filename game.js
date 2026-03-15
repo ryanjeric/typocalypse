@@ -1478,6 +1478,12 @@
     });
   }
 
+  function checkWaveClearAfterLevelUp() {
+    if (!state.waveActive && state.waveEnemiesLeft <= 0 && enemies.filter((e) => e.hp > 0).length === 0) {
+      showWaveClearScreen();
+    }
+  }
+
   function selectWeaponUpgrade(upg, branch) {
     upg.apply(state);
     state.upgrades.push(upg.id);
@@ -1487,6 +1493,7 @@
     state.screen = 'playing';
     audio.upgrade();
     updateUpgradeBar();
+    checkWaveClearAfterLevelUp();
   }
 
   function initSubWeaponBranchProgress(weapon) {
@@ -1540,6 +1547,7 @@
     skipCard.addEventListener('click', () => {
       dom.upgradeScreen.classList.add('hidden');
       state.screen = 'playing';
+      checkWaveClearAfterLevelUp();
     });
     dom.upgradeCards.appendChild(skipCard);
   }
@@ -1551,6 +1559,7 @@
     state.screen = 'playing';
     audio.upgrade();
     updateUpgradeBar();
+    checkWaveClearAfterLevelUp();
   }
 
   function showSubWeaponUpgradeScreen() {
@@ -1580,6 +1589,7 @@
     state.screen = 'playing';
     audio.upgrade();
     updateUpgradeBar();
+    checkWaveClearAfterLevelUp();
   }
 
   function showWaveClearScreen() {
