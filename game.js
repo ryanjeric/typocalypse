@@ -1103,11 +1103,16 @@
       critFlashTimer: 0, lastStreakThreshold: 0,
       freezeTimer: 0, bombTimer: 0, slowDropTimer: 0,
       doubleTimer: 0, shieldHits: 0, nukeFlash: 0,
-      clickTargetCritChance: state.clickTargetCritChance ?? 0.1, clickTargetCritMult: state.clickTargetCritMult ?? 2,
+      clickTargetCritChance: 0.1, clickTargetCritMult: 2,
       comboSpeedBoost: 1, comboSpeedTimer: 0,
       comboCritBoost: 0, comboCritTimer: 0,
       comboMilestonesHit: new Set(),
       enemiesKilled: 0,
+      orbCount: 0, spectreEnabled: false, minefieldEnabled: false, meteorEnabled: false, meteorTimer: 0,
+      droneFireRate: 1, venomDotMult: 1, shrapnelFireTrail: false, cryoChance: 0,
+      arcChainDamageMult: 0.5, shrapnelSpread: 1, shrapnelDamageMult: 1,
+      pulseDamageMult: 1, pulseSpeedMult: 1, ricochetBounceMult: 0.7,
+      gamblerCurse: false,
     });
     if (state.mode === 'daily') {
       state.maxHp = 50;
