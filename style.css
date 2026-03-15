@@ -591,6 +591,20 @@ body.reduced-motion * {
   color: #c084fc;
 }
 
+.upgrade-card--skip {
+  border-color: rgba(var(--grid-r), var(--grid-g), var(--grid-b), 0.3);
+  opacity: 0.9;
+}
+
+.upgrade-card--skip:hover {
+  border-color: var(--muted);
+  opacity: 1;
+}
+
+.upg-icon--sub {
+  opacity: 0.85;
+}
+
 .upgrade-card-icon {
   font-size: 2.5rem;
   margin-bottom: 0.5em;
@@ -916,6 +930,7 @@ body.light-mode .exp-progress {
 /* Overlay screens (scores, stats, pause) */
 #scores-screen,
 #stats-screen,
+#achievements-screen,
 #settings-screen,
 #pause-screen {
   position: fixed;

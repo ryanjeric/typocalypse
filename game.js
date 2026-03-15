@@ -701,6 +701,8 @@
     clickTargetCritChance: 0.1, clickTargetCritMult: 2,
     upgrades: [], augmentations: [],
     weaponBranchProgress: {},
+    subWeapon: null,
+    subWeaponBranchProgress: {},
     autoTyperCount: 0, autoTyperTimer: 0,
     critFlashTimer: 0, lastStreakThreshold: 0,
     freezeTimer: 0, bombTimer: 0, slowDropTimer: 0,
@@ -984,6 +986,8 @@
       currentInput: '', targetEnemy: null, targetDrop: null, targetAugDrop: null, targetChosenViaClick: false,
       upgrades: [], augmentations: [],
       weaponBranchProgress: initWeaponBranchProgress(currentWeapon),
+      subWeapon: null,
+      subWeaponBranchProgress: {},
       autoTyperCount: 0, autoTyperTimer: 0,
       critFlashTimer: 0, lastStreakThreshold: 0,
       freezeTimer: 0, bombTimer: 0, slowDropTimer: 0,
@@ -1131,10 +1135,11 @@
     const dist = Math.max(W, H) / 2 + 40 + getRandom() * 60;
     const x = player.x + Math.cos(angle) * dist;
     const y = player.y + Math.sin(angle) * dist;
-    const hp = def.hp * diff.hpMult;
+    const subScale = state.subWeapon ? { hp: 1.25, speed: 1.1 } : { hp: 1, speed: 1 };
+    const hp = def.hp * diff.hpMult * subScale.hp;
     const enemy = {
       x, y, type, word, typedIndex: 0, hp, maxHp: hp,
-      speed: def.speed * diff.speedMult * (0.9 + Math.random() * 0.2) * (1 + state.wave * 0.04),
+      speed: def.speed * diff.speedMult * subScale.speed * (0.9 + Math.random() * 0.2) * (1 + state.wave * 0.04),
       size: def.size, sides: def.sides, color: def.color,
       scoreValue: def.scoreValue, angle: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 2, pulsePhase: Math.random() * Math.PI * 2,
@@ -1214,7 +1219,7 @@
 
     const typeKey = AUGMENTATION_KEYS[Math.floor(Math.random() * AUGMENTATION_KEYS.length)];
     const def = AUGMENTATION_TYPES[typeKey];
-    if (def.weapon && def.weapon !== state.weapon) return;
+    if (def.weapon && def.weapon !== state.weapon && def.weapon !== state.subWeapon) return;
 
     const usedWords = new Set(enemies.map((e) => e.word));
     powerDrops.forEach((d) => usedWords.add(d.word));
@@ -1329,7 +1334,8 @@
     state.waveEnemiesLeft = base;
     state.waveActive = true;
     state.spawnTimer = 0;
-    state.spawnInterval = Math.max(0.3, (1.5 - state.wave * 0.08) * diff.spawnMult);
+    const spawnMultSub = state.subWeapon ? 0.9 : 1;
+    state.spawnInterval = Math.max(0.3, (1.5 - state.wave * 0.08) * diff.spawnMult * spawnMultSub);
     const el = document.createElement('div');
     el.className = 'wave-announce';
     el.textContent = `WAVE ${state.wave}`;
@@ -1375,15 +1381,6 @@
     dom.upgradeTitle.textContent = 'LEVEL UP';
     dom.upgradeSubtitle.textContent = `Level ${state.level} \u2014 choose a weapon upgrade`;
     const choices = getNextBranchUpgrades();
-    if (choices.length === 0) {
-      dom.upgradeSubtitle.textContent = 'All branches maxed';
-      dom.upgradeCards.innerHTML = '';
-      setTimeout(() => {
-        dom.upgradeScreen.classList.add('hidden');
-        state.screen = 'playing';
-      }, 1200);
-      return;
-    }
     state.upgradePhase = 'weapon';
     window._upgradeChoices = choices.slice(0, 3);
     dom.upgradeCards.innerHTML = '';
@@ -1407,6 +1404,98 @@
     updateUpgradeBar();
   }
 
+  function initSubWeaponBranchProgress(weapon) {
+    const branches = WEAPON_UPGRADE_BRANCHES[weapon];
+    if (!branches) return {};
+    const prog = {};
+    Object.keys(branches).forEach((b) => { prog[b] = 0; });
+    return prog;
+  }
+
+  function getNextSubWeaponBranchUpgrades() {
+    const w = state.subWeapon;
+    if (!w) return [];
+    const branches = WEAPON_UPGRADE_BRANCHES[w];
+    if (!branches) return [];
+    const prog = state.subWeaponBranchProgress || {};
+    const choices = [];
+    Object.keys(branches).forEach((branchName) => {
+      const tier = prog[branchName] || 0;
+      const tierList = branches[branchName];
+      if (tier < tierList.length) {
+        choices.push({ upg: tierList[tier], branch: branchName });
+      }
+    });
+    return choices;
+  }
+
+  function showSubWeaponChoiceScreen() {
+    state.screen = 'upgrade';
+    state.upgradePhase = 'subWeaponSelect';
+    dom.upgradeScreen.classList.remove('hidden');
+    dom.upgradeTitle.textContent = 'SUB-WEAPON UNLOCK';
+    dom.upgradeSubtitle.textContent = 'Main weapon maxed \u2014 choose a secondary weapon';
+    const options = WEAPON_KEYS.filter((k) => k !== state.weapon)
+      .map((k) => WEAPONS[k])
+      .sort(() => Math.random() - 0.5);
+    window._upgradeChoices = options.slice(0, 3);
+    dom.upgradeCards.innerHTML = '';
+    options.slice(0, 3).forEach((w, i) => {
+      const card = document.createElement('div');
+      card.className = 'upgrade-card';
+      card.style.borderColor = w.color + '66';
+      card.innerHTML = `<div class="upgrade-card-icon">${w.icon}</div><div class="upgrade-card-name" style="color:${w.color}">${w.name}</div><div class="upgrade-card-desc">${w.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.addEventListener('click', () => selectSubWeapon(w.id));
+      dom.upgradeCards.appendChild(card);
+    });
+    const skipCard = document.createElement('div');
+    skipCard.className = 'upgrade-card upgrade-card--skip';
+    skipCard.innerHTML = '<div class="upgrade-card-icon">\u2715</div><div class="upgrade-card-name">SKIP</div><div class="upgrade-card-desc">Continue without sub-weapon</div>';
+    skipCard.addEventListener('click', () => {
+      dom.upgradeScreen.classList.add('hidden');
+      state.screen = 'playing';
+    });
+    dom.upgradeCards.appendChild(skipCard);
+  }
+
+  function selectSubWeapon(weaponKey) {
+    state.subWeapon = weaponKey;
+    state.subWeaponBranchProgress = initSubWeaponBranchProgress(weaponKey);
+    dom.upgradeScreen.classList.add('hidden');
+    state.screen = 'playing';
+    audio.upgrade();
+    updateUpgradeBar();
+  }
+
+  function showSubWeaponUpgradeScreen() {
+    state.screen = 'upgrade';
+    state.upgradePhase = 'subWeaponUpgrade';
+    dom.upgradeScreen.classList.remove('hidden');
+    dom.upgradeTitle.textContent = 'LEVEL UP';
+    dom.upgradeSubtitle.textContent = `Level ${state.level} \u2014 choose a sub-weapon upgrade`;
+    const choices = getNextSubWeaponBranchUpgrades();
+    window._upgradeChoices = choices.slice(0, 3);
+    dom.upgradeCards.innerHTML = '';
+    choices.slice(0, 3).forEach(({ upg, branch }, i) => {
+      const card = document.createElement('div');
+      card.className = 'upgrade-card';
+      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.addEventListener('click', () => selectSubWeaponUpgrade(upg, branch));
+      dom.upgradeCards.appendChild(card);
+    });
+  }
+
+  function selectSubWeaponUpgrade(upg, branch) {
+    upg.apply(state);
+    state.upgrades.push(upg.id);
+    if (!state.subWeaponBranchProgress) state.subWeaponBranchProgress = initSubWeaponBranchProgress(state.subWeapon);
+    state.subWeaponBranchProgress[branch] = (state.subWeaponBranchProgress[branch] || 0) + 1;
+    dom.upgradeScreen.classList.add('hidden');
+    state.screen = 'playing';
+    audio.upgrade();
+    updateUpgradeBar();
+  }
+
   function showWaveClearScreen() {
     state.screen = 'upgrade';
     state.upgradePhase = 'waveClear';
@@ -1415,7 +1504,7 @@
     dom.upgradeSubtitle.textContent = `Choose an augmentation, power-up, or field upgrade`;
     const pool = WAVE_CLEAR_CHOICES.filter((u) => {
       if (state.upgrades.includes(u.id)) return false;
-      if (u.augmentation && u.weapon && u.weapon !== state.weapon) return false;
+      if (u.augmentation && u.weapon && u.weapon !== state.weapon && u.weapon !== state.subWeapon) return false;
       return true;
     });
     const available = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
@@ -1601,11 +1690,12 @@
       setTimeout(() => flash.remove(), 2000);
     }
 
+    const subDef = state.subWeapon && WEAPONS[state.subWeapon];
     dom.gameOverStats.innerHTML = `
       <div class="game-over-wave">REACHED WAVE ${state.wave}</div>
       <div class="stat-row"><span class="stat-label">SCORE</span><span class="stat-value">${state.score.toLocaleString()}</span></div>
       <div class="stat-row"><span class="stat-label">WAVE</span><span class="stat-value">${state.wave}</span></div>
-      <div class="stat-row"><span class="stat-label">WEAPON</span><span class="stat-value" style="color:${wDef.color}">${wDef.icon} ${wDef.name}</span></div>
+      <div class="stat-row"><span class="stat-label">WEAPON</span><span class="stat-value" style="color:${wDef.color}">${wDef.icon} ${wDef.name}${subDef ? ` + ${subDef.icon} ${subDef.name}` : ''}</span></div>
       <div class="stat-row"><span class="stat-label">DIFFICULTY</span><span class="stat-value" style="color:${diff.color}">${diff.label}</span></div>
       <div class="stat-row"><span class="stat-label">WORDS TYPED</span><span class="stat-value">${state.wordsTyped}</span></div>
       <div class="stat-row"><span class="stat-label">MAX COMBO</span><span class="stat-value">x${state.maxCombo}</span></div>
@@ -1655,6 +1745,10 @@
       const badge = counts[id] > 1 ? `<span class="upg-badge">x${counts[id]}</span>` : '';
       html += `<div class="upg-icon" title="${upg.name}">${upg.icon}${badge}</div>`;
     });
+    if (state.subWeapon && WEAPONS[state.subWeapon]) {
+      const sw = WEAPONS[state.subWeapon];
+      html += `<div class="upg-icon upg-icon--sub" title="Sub: ${sw.name}" style="border-color:${sw.color}66">${sw.icon}</div>`;
+    }
     dom.hudUpgrades.innerHTML = html;
   }
 
@@ -1692,6 +1786,8 @@
     lightningArcs.push({ segments: segs, life: 1, color });
   }
 
+  const SUB_WEAPON_DAMAGE_MULT = 0.6;
+
   function fireWeapon(enemy) {
     const w = state.weapon;
     if (w === 'bolt') fireBolt(enemy);
@@ -1701,6 +1797,20 @@
     else if (w === 'pulse') firePulseNova(enemy);
     else if (w === 'ricochet') fireRicochetDisc(enemy);
     else fireBolt(enemy);
+
+    if (state.subWeapon) {
+      const saved = state.damageMultiplier;
+      state.damageMultiplier *= SUB_WEAPON_DAMAGE_MULT;
+      const sw = state.subWeapon;
+      if (sw === 'bolt') fireBolt(enemy);
+      else if (sw === 'arc') fireArcBeam(enemy);
+      else if (sw === 'shrapnel') fireShrapnelCannon(enemy);
+      else if (sw === 'venom') fireVenomSpit(enemy);
+      else if (sw === 'pulse') firePulseNova(enemy);
+      else if (sw === 'ricochet') fireRicochetDisc(enemy);
+      else fireBolt(enemy);
+      state.damageMultiplier = saved;
+    }
   }
 
   function fireProjectile(enemy, color) {
@@ -1927,7 +2037,18 @@
       state.exp = 0;
       state.expToNextLevel = 5 + (state.level - 1) * 2;
       setTimeout(() => {
-        if (state.screen === 'playing') showWeaponUpgradeScreen();
+        if (state.screen !== 'playing') return;
+        const mainChoices = getNextBranchUpgrades();
+        if (mainChoices.length > 0) {
+          showWeaponUpgradeScreen();
+        } else if (!state.subWeapon) {
+          showSubWeaponChoiceScreen();
+        } else {
+          const subChoices = getNextSubWeaponBranchUpgrades();
+          if (subChoices.length > 0) {
+            showSubWeaponUpgradeScreen();
+          }
+        }
       }, 400);
     }
     checkStreakMilestone();
@@ -2084,6 +2205,12 @@
         if (state.upgradePhase === 'weapon') {
           const c = window._upgradeChoices[idx];
           selectWeaponUpgrade(c.upg, c.branch);
+        } else if (state.upgradePhase === 'subWeaponSelect') {
+          const w = window._upgradeChoices[idx];
+          selectSubWeapon(w.id);
+        } else if (state.upgradePhase === 'subWeaponUpgrade') {
+          const c = window._upgradeChoices[idx];
+          selectSubWeaponUpgrade(c.upg, c.branch);
         } else {
           selectWaveClearChoice(window._upgradeChoices[idx]);
         }
@@ -2120,7 +2247,7 @@
       }
       return;
     }
-    if (key === 'Tab') {
+    if (key === 'tab') {
       e.preventDefault();
       const alive = enemies.filter((e) => e.hp > 0 && e.spawnAlpha >= 0.5).sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y));
       if (alive.length > 0) {
@@ -3487,7 +3614,8 @@
 
   function updateAccessibilityButtons() {
     document.getElementById('colorblind-btn')?.classList.toggle('active', colorblindMode);
-    document.getElementById('font-size-btn')?.textContent = 'FONT: ' + fontSizeMode.toUpperCase();
+    const fontSizeBtn = document.getElementById('font-size-btn');
+    if (fontSizeBtn) fontSizeBtn.textContent = 'FONT: ' + fontSizeMode.toUpperCase();
     document.getElementById('reduced-motion-btn')?.classList.toggle('active', reducedMotion);
   }
 
