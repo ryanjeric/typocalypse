@@ -1592,6 +1592,98 @@
     checkWaveClearAfterLevelUp();
   }
 
+  function initSubWeaponBranchProgress(weapon) {
+    const branches = WEAPON_UPGRADE_BRANCHES[weapon];
+    if (!branches) return {};
+    const prog = {};
+    Object.keys(branches).forEach((b) => { prog[b] = 0; });
+    return prog;
+  }
+
+  function getNextSubWeaponBranchUpgrades() {
+    const w = state.subWeapon;
+    if (!w) return [];
+    const branches = WEAPON_UPGRADE_BRANCHES[w];
+    if (!branches) return [];
+    const prog = state.subWeaponBranchProgress || {};
+    const choices = [];
+    Object.keys(branches).forEach((branchName) => {
+      const tier = prog[branchName] || 0;
+      const tierList = branches[branchName];
+      if (tier < tierList.length) {
+        choices.push({ upg: tierList[tier], branch: branchName });
+      }
+    });
+    return choices;
+  }
+
+  function showSubWeaponChoiceScreen() {
+    state.screen = 'upgrade';
+    state.upgradePhase = 'subWeaponSelect';
+    dom.upgradeScreen.classList.remove('hidden');
+    dom.upgradeTitle.textContent = 'SUB-WEAPON UNLOCK';
+    dom.upgradeSubtitle.textContent = 'Main weapon maxed \u2014 choose a secondary weapon';
+    const options = WEAPON_KEYS.filter((k) => k !== state.weapon)
+      .map((k) => WEAPONS[k])
+      .sort(() => Math.random() - 0.5);
+    window._upgradeChoices = options.slice(0, 3);
+    dom.upgradeCards.innerHTML = '';
+    options.slice(0, 3).forEach((w, i) => {
+      const card = document.createElement('div');
+      card.className = 'upgrade-card';
+      card.style.borderColor = w.color + '66';
+      card.innerHTML = `<div class="upgrade-card-icon">${w.icon}</div><div class="upgrade-card-name" style="color:${w.color}">${w.name}</div><div class="upgrade-card-desc">${w.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.addEventListener('click', () => selectSubWeapon(w.id));
+      dom.upgradeCards.appendChild(card);
+    });
+    const skipCard = document.createElement('div');
+    skipCard.className = 'upgrade-card upgrade-card--skip';
+    skipCard.innerHTML = '<div class="upgrade-card-icon">\u2715</div><div class="upgrade-card-name">SKIP</div><div class="upgrade-card-desc">Continue without sub-weapon</div>';
+    skipCard.addEventListener('click', () => {
+      dom.upgradeScreen.classList.add('hidden');
+      state.screen = 'playing';
+    });
+    dom.upgradeCards.appendChild(skipCard);
+  }
+
+  function selectSubWeapon(weaponKey) {
+    state.subWeapon = weaponKey;
+    state.subWeaponBranchProgress = initSubWeaponBranchProgress(weaponKey);
+    dom.upgradeScreen.classList.add('hidden');
+    state.screen = 'playing';
+    audio.upgrade();
+    updateUpgradeBar();
+  }
+
+  function showSubWeaponUpgradeScreen() {
+    state.screen = 'upgrade';
+    state.upgradePhase = 'subWeaponUpgrade';
+    dom.upgradeScreen.classList.remove('hidden');
+    dom.upgradeTitle.textContent = 'LEVEL UP';
+    dom.upgradeSubtitle.textContent = `Level ${state.level} \u2014 choose a sub-weapon upgrade`;
+    const choices = getNextSubWeaponBranchUpgrades();
+    window._upgradeChoices = choices.slice(0, 3);
+    dom.upgradeCards.innerHTML = '';
+    choices.slice(0, 3).forEach(({ upg, branch }, i) => {
+      const card = document.createElement('div');
+      card.className = 'upgrade-card';
+      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.addEventListener('click', () => selectSubWeaponUpgrade(upg, branch));
+      dom.upgradeCards.appendChild(card);
+    });
+  }
+
+  function selectSubWeaponUpgrade(upg, branch) {
+    upg.apply(state);
+    state.upgrades.push(upg.id);
+    if (!state.subWeaponBranchProgress) state.subWeaponBranchProgress = initSubWeaponBranchProgress(state.subWeapon);
+    state.subWeaponBranchProgress[branch] = (state.subWeaponBranchProgress[branch] || 0) + 1;
+    dom.upgradeScreen.classList.add('hidden');
+    state.screen = 'playing';
+    audio.upgrade();
+    updateUpgradeBar();
+  }
+
   function showWaveClearScreen() {
     state.screen = 'upgrade';
     state.upgradePhase = 'waveClear';
