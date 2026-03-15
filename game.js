@@ -55,6 +55,7 @@
   let particleDensity = 1;
 
   function getParticleDensity() {
+    if (typeof reducedMotion !== 'undefined' && reducedMotion) return 0.1;
     return particleDensity;
   }
 
@@ -66,6 +67,62 @@
   function loadParticleDensity() {
     const saved = localStorage.getItem('typocalypse-particle-density');
     if (saved === '0.33' || saved === '0.66' || saved === '1') particleDensity = parseFloat(saved);
+  }
+
+  let soundMuted = false;
+  let soundVolume = 1;
+
+  function getSoundVolume() {
+    return soundMuted ? 0 : soundVolume;
+  }
+
+  function setSoundMuted(val) {
+    soundMuted = !!val;
+    localStorage.setItem('typocalypse-sound-muted', soundMuted ? '1' : '0');
+  }
+
+  function setSoundVolume(val) {
+    soundVolume = Math.max(0, Math.min(1, val));
+    localStorage.setItem('typocalypse-sound-volume', String(soundVolume));
+  }
+
+  function loadSoundSettings() {
+    const muted = localStorage.getItem('typocalypse-sound-muted');
+    if (muted === '1' || muted === '0') soundMuted = muted === '1';
+    const vol = parseFloat(localStorage.getItem('typocalypse-sound-volume'));
+    if (!isNaN(vol) && vol >= 0 && vol <= 1) soundVolume = vol;
+  }
+
+  let colorblindMode = false;
+  let fontSizeMode = 'medium';
+  let reducedMotion = false;
+
+  function setColorblindMode(val) {
+    colorblindMode = !!val;
+    document.body.classList.toggle('colorblind-mode', colorblindMode);
+    localStorage.setItem('typocalypse-colorblind', colorblindMode ? '1' : '0');
+  }
+
+  function setFontSizeMode(mode) {
+    fontSizeMode = ['small', 'medium', 'large'].includes(mode) ? mode : 'medium';
+    document.body.classList.remove('font-small', 'font-medium', 'font-large');
+    document.body.classList.add('font-' + fontSizeMode);
+    localStorage.setItem('typocalypse-font-size', fontSizeMode);
+  }
+
+  function setReducedMotion(val) {
+    reducedMotion = !!val;
+    document.body.classList.toggle('reduced-motion', reducedMotion);
+    localStorage.setItem('typocalypse-reduced-motion', reducedMotion ? '1' : '0');
+  }
+
+  function loadAccessibilitySettings() {
+    const cb = localStorage.getItem('typocalypse-colorblind');
+    if (cb === '1' || cb === '0') setColorblindMode(cb === '1');
+    const fs = localStorage.getItem('typocalypse-font-size');
+    if (['small', 'medium', 'large'].includes(fs)) setFontSizeMode(fs);
+    const rm = localStorage.getItem('typocalypse-reduced-motion');
+    if (rm === '1' || rm === '0') setReducedMotion(rm === '1');
   }
 
   function getTheme() {
@@ -141,7 +198,22 @@
     endless: { label: 'ENDLESS', desc: 'Standard mode', color: '#00f0ff' },
     relaxed: { label: 'RELAXED', desc: 'Slower combo decay', color: '#4ade80' },
     typist: { label: 'TYPIST', desc: 'WPM/accuracy focus', color: '#a78bfa' },
+    daily: { label: 'DAILY', desc: 'Fixed seed, double damage, half HP', color: '#f59e0b' },
   };
+
+  function getDailySeed() {
+    return new Date().toDateString();
+  }
+
+  function seededRandom(seed) {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) h = ((h << 5) - h) + seed.charCodeAt(i) | 0;
+    return () => {
+      h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+      h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+      return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+    };
+  }
 
   const DIFFICULTY_PRESETS = {
     easy:   { hpMult: 0.7, speedMult: 0.8, spawnMult: 1.3, wordShift: -1, label: 'EASY', color: '#4ade80' },
@@ -488,6 +560,8 @@
     { id: 'curseBerserk', curse: true, icon: '\u2694', name: 'CURSE: BERSERK', desc: '+50% damage, -20% max HP', apply: makeApply((s) => { s.damageMultiplier *= 1.5; s.maxHp = Math.max(50, Math.floor(s.maxHp * 0.8)); s.hp = Math.min(s.hp, s.maxHp); }) },
     { id: 'curseGlass', curse: true, icon: '\u{1F4A5}', name: 'CURSE: GLASS CANNON', desc: '+40% projectile speed, -15 HP', apply: makeApply((s) => { s.projectileSpeed *= 1.4; s.maxHp = Math.max(50, s.maxHp - 15); s.hp = Math.min(s.hp, s.maxHp); }) },
     { id: 'curseGreed', curse: true, icon: '\u{1F4B0}', name: 'CURSE: GREED', desc: '+50% score, enemies 20% faster', apply: makeApply((s) => { s.scoreMultiplier *= 1.5; s.enemySpeedCurse = (s.enemySpeedCurse || 1) * 1.2; }) },
+    { id: 'curseFrenzy', curse: true, icon: '\u26A1', name: 'CURSE: FRENZY', desc: '+25% fire rate, -20% accuracy (longer words)', apply: makeApply((s) => { s.projectileSpeed *= 1.25; s.easyWordBias = (s.easyWordBias || 0) - 0.2; }) },
+    { id: 'curseGambler', curse: true, icon: '\u{1F3B0}', name: 'CURSE: GAMBLER', desc: 'Random effect on each kill: heal, damage, or nothing', apply: makeApply((s) => { s.gamblerCurse = true; }) },
   ];
 
   // --- Legacy ALL_UPGRADES (kept for updateUpgradeBar compatibility) ---
@@ -515,22 +589,40 @@
     { id: 'curseBerserk', curse: true, icon: '\u2694', name: 'CURSE: BERSERK', desc: '+50% damage, -20% max HP', apply: (s) => { s.damageMultiplier *= 1.5; s.maxHp = Math.max(50, Math.floor(s.maxHp * 0.8)); s.hp = Math.min(s.hp, s.maxHp); } },
     { id: 'curseGlass', curse: true, icon: '\u{1F4A5}', name: 'CURSE: GLASS CANNON', desc: '+40% projectile speed, -15 HP', apply: (s) => { s.projectileSpeed *= 1.4; s.maxHp = Math.max(50, s.maxHp - 15); s.hp = Math.min(s.hp, s.maxHp); } },
     { id: 'curseGreed', curse: true, icon: '\u{1F4B0}', name: 'CURSE: GREED', desc: '+50% score, enemies 20% faster', apply: (s) => { s.scoreMultiplier *= 1.5; s.enemySpeedCurse = (s.enemySpeedCurse || 1) * 1.2; } },
+    { id: 'curseFrenzy', curse: true, icon: '\u26A1', name: 'CURSE: FRENZY', desc: '+25% fire rate, -20% accuracy', apply: (s) => { s.projectileSpeed *= 1.25; s.easyWordBias = (s.easyWordBias || 0) - 0.2; } },
+    { id: 'curseGambler', curse: true, icon: '\u{1F3B0}', name: 'CURSE: GAMBLER', desc: 'Random effect on each kill', apply: (s) => { s.gamblerCurse = true; } },
   ];
 
   // --- Enemy types ---
 
   const ENEMY_TYPES = {
-    drone:    { color: '#00f0ff', hp: 1, speed: 1,   size: 14, sides: 4, scoreValue: 10 },
-    scout:    { color: '#4ade80', hp: 1, speed: 1.8, size: 10, sides: 3, scoreValue: 15 },
-    tank:     { color: '#f59e0b', hp: 3, speed: 0.5, size: 22, sides: 6, scoreValue: 30 },
-    elite:    { color: '#ef4444', hp: 5, speed: 0.7, size: 18, sides: 5, scoreValue: 50 },
-    swarm:    { color: '#a78bfa', hp: 1, speed: 2.2, size: 8,  sides: 3, scoreValue: 8 },
-    boss:     { color: '#ff2d55', hp: 8, speed: 0.35, size: 32, sides: 7, scoreValue: 200 },
-    splitter: { color: '#f472b6', hp: 2, speed: 1.2, size: 16, sides: 5, scoreValue: 20 },
-    fragment: { color: '#f9a8d4', hp: 1, speed: 1.6, size: 8,  sides: 3, scoreValue: 8 },
-    shielder: { color: '#38bdf8', hp: 3, speed: 0.8, size: 18, sides: 6, scoreValue: 35 },
-    speeder:  { color: '#c084fc', hp: 1, speed: 3.0, size: 10, sides: 3, scoreValue: 18 },
+    drone:      { color: '#00f0ff', hp: 1, speed: 1,   size: 14, sides: 4, scoreValue: 10 },
+    scout:      { color: '#4ade80', hp: 1, speed: 1.8, size: 10, sides: 3, scoreValue: 15 },
+    tank:       { color: '#f59e0b', hp: 3, speed: 0.5, size: 22, sides: 6, scoreValue: 30 },
+    elite:      { color: '#ef4444', hp: 5, speed: 0.7, size: 18, sides: 5, scoreValue: 50 },
+    swarm:      { color: '#a78bfa', hp: 1, speed: 2.2, size: 8,  sides: 3, scoreValue: 8 },
+    boss:       { color: '#ff2d55', hp: 8, speed: 0.35, size: 32, sides: 7, scoreValue: 200 },
+    bossTank:   { color: '#e63946', hp: 14, speed: 0.2, size: 36, sides: 8, scoreValue: 250 },
+    bossSplitter: { color: '#ff6b6b', hp: 8, speed: 0.35, size: 32, sides: 7, scoreValue: 200 },
+    bossShielded: { color: '#ff2d55', hp: 8, speed: 0.35, size: 32, sides: 7, scoreValue: 200 },
+    splitter:   { color: '#f472b6', hp: 2, speed: 1.2, size: 16, sides: 5, scoreValue: 20 },
+    fragment:   { color: '#f9a8d4', hp: 1, speed: 1.6, size: 8,  sides: 3, scoreValue: 8 },
+    shielder:   { color: '#38bdf8', hp: 3, speed: 0.8, size: 18, sides: 6, scoreValue: 35 },
+    speeder:    { color: '#c084fc', hp: 1, speed: 3.0, size: 10, sides: 3, scoreValue: 18 },
+    regenerator: { color: '#10b981', hp: 2, speed: 0.6, size: 16, sides: 5, scoreValue: 25 },
+    teleporter: { color: '#8b5cf6', hp: 2, speed: 1.0, size: 14, sides: 6, scoreValue: 28 },
   };
+
+  function getBossTypeForWave() {
+    const cycle = (state.wave - 1) % 15;
+    if (cycle < 5) return 'bossTank';
+    if (cycle < 10) return 'bossSplitter';
+    return 'bossShielded';
+  }
+
+  function isBossType(t) {
+    return t === 'boss' || t === 'bossTank' || t === 'bossSplitter' || t === 'bossShielded';
+  }
 
   // --- Audio ---
 
@@ -542,11 +634,13 @@
     },
     play(freq, duration = 0.1, type = 'square', vol = 0.08) {
       if (!this.ctx) return;
+      const mult = typeof getSoundVolume === 'function' ? getSoundVolume() : 1;
+      if (mult <= 0) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+      gain.gain.setValueAtTime(vol * mult, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
       osc.connect(gain);
       gain.connect(this.ctx.destination);
@@ -554,7 +648,12 @@
       osc.stop(this.ctx.currentTime + duration);
     },
     typeKey() { this.play(880, 0.05, 'square', 0.04); },
-    killEnemy() { this.play(440, 0.15, 'sawtooth', 0.06); this.play(880, 0.2, 'sine', 0.05); },
+    killEnemy(combo = 0) {
+      const ramp = Math.min(1.5, 1 + combo * 0.02);
+      const vol = Math.min(0.1, 0.06 + combo * 0.002);
+      this.play(440 * ramp, 0.15, 'sawtooth', vol);
+      this.play(880 * ramp, 0.2, 'sine', vol * 0.8);
+    },
     hit() { this.play(150, 0.2, 'sawtooth', 0.08); },
     miss() { this.play(200, 0.1, 'square', 0.03); },
     invalid() { this.play(150, 0.15, 'sawtooth', 0.06); this.play(100, 0.1, 'square', 0.04); },
@@ -656,6 +755,10 @@
     statsList: document.getElementById('stats-list'),
     statsBtn: document.getElementById('stats-btn'),
     statsCloseBtn: document.getElementById('stats-close-btn'),
+    achievementsScreen: document.getElementById('achievements-screen'),
+    achievementsList: document.getElementById('achievements-list'),
+    achievementsBtn: document.getElementById('achievements-btn'),
+    achievementsCloseBtn: document.getElementById('achievements-close-btn'),
     settingsScreen: document.getElementById('settings-screen'),
     settingsBtn: document.getElementById('settings-btn'),
     settingsCloseBtn: document.getElementById('settings-close-btn'),
@@ -674,7 +777,22 @@
     } catch { return []; }
   }
 
+  function loadDailyHighScores() {
+    try {
+      const key = 'typingSurvivor_daily_' + getDailySeed();
+      return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch { return []; }
+  }
+
   function saveHighScore(entry) {
+    if (state.mode === 'daily') {
+      const scores = loadDailyHighScores();
+      scores.push({ ...entry, date: getDailySeed() });
+      scores.sort((a, b) => b.score - a.score);
+      const top10 = scores.slice(0, 10);
+      localStorage.setItem('typingSurvivor_daily_' + getDailySeed(), JSON.stringify(top10));
+      return top10;
+    }
     const scores = loadHighScores();
     scores.push(entry);
     scores.sort((a, b) => b.score - a.score);
@@ -683,13 +801,20 @@
     return top10;
   }
 
+  function getRandom() {
+    if (state.mode === 'daily' && state.dailyRandom) return state.dailyRandom();
+    return Math.random();
+  }
+
   function renderScoresScreen() {
-    const scores = loadHighScores();
+    const isDaily = (state.scoresViewMode || 'all') === 'daily';
+    const scores = isDaily ? loadDailyHighScores() : loadHighScores();
     if (scores.length === 0) {
       dom.scoresList.innerHTML = '<div class="no-scores">No scores yet. Play a game!</div>';
       return;
     }
-    dom.scoresList.innerHTML = scores.map((s, i) => `
+    const header = isDaily ? `<div class="scores-daily-header">DAILY CHALLENGE — ${getDailySeed()}</div>` : '';
+    dom.scoresList.innerHTML = header + scores.map((s, i) => `
       <div class="score-entry">
         <span class="score-rank">#${i + 1}</span>
         <div class="score-details">
@@ -703,15 +828,84 @@
 
   // --- Lifetime Stats ---
 
+  const ACHIEVEMENTS = [
+    { id: 'firstBlood', icon: '\u{1F5E1}', label: 'FIRST BLOOD', desc: 'Get your first kill' },
+    { id: 'wave10', icon: '\u{1F4CA}', label: 'WAVE 10', desc: 'Reach wave 10' },
+    { id: 'bossSlayer', icon: '\u{1F525}', label: 'BOSS SLAYER', desc: 'Kill your first boss' },
+    { id: 'weaponMaster', icon: '\u2694', label: 'WEAPON MASTER', desc: '50 kills with one weapon' },
+    { id: 'comboKing', icon: '\u{1F4A5}', label: 'COMBO KING', desc: 'Reach a 30+ combo' },
+    { id: 'typist', icon: '\u2328', label: 'TYPIST', desc: '80+ WPM for 60 seconds' },
+    { id: 'survivor', icon: '\u{1F3C6}', label: 'SURVIVOR', desc: 'Survive 20 minutes' },
+  ];
+
+  function loadAchievements() {
+    try {
+      const raw = localStorage.getItem('typocalypse-achievements');
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function unlockAchievement(id) {
+    const unlocked = loadAchievements();
+    if (unlocked[id]) return false;
+    unlocked[id] = Date.now();
+    localStorage.setItem('typocalypse-achievements', JSON.stringify(unlocked));
+    const ach = ACHIEVEMENTS.find((a) => a.id === id);
+    if (ach) {
+      const el = document.createElement('div');
+      el.className = 'achievement-popup';
+      el.innerHTML = `<span class="achievement-icon">${ach.icon}</span><div><strong>${ach.label}</strong><br>${ach.desc}</div>`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+      audio.powerUp();
+    }
+    return true;
+  }
+
+  function checkAchievements() {
+    const ls = loadLifetimeStats();
+    const unlocked = loadAchievements();
+    if (!unlocked.firstBlood && (ls.totalKills || 0) >= 1) unlockAchievement('firstBlood');
+    if (!unlocked.wave10 && (ls.bestWave || 0) >= 10) unlockAchievement('wave10');
+    if (!unlocked.bossSlayer && (ls.bossKills || 0) >= 1) unlockAchievement('bossSlayer');
+    const wKills = state.weaponKills || {};
+    const maxWeaponKills = Math.max(0, ...Object.values(wKills));
+    if (!unlocked.weaponMaster && maxWeaponKills >= 50) unlockAchievement('weaponMaster');
+    if (!unlocked.comboKing && (state.maxCombo || 0) >= 30) unlockAchievement('comboKing');
+    const elapsed = (performance.now() - state.startTime) / 1000;
+    const wpm = elapsed > 0 ? (state.totalCharsTyped / 5) / (elapsed / 60) : 0;
+    if (!unlocked.typist && elapsed >= 60 && wpm >= 80) unlockAchievement('typist');
+    if (!unlocked.survivor && elapsed >= 1200) unlockAchievement('survivor');
+  }
+
+  function renderAchievementsScreen() {
+    if (!dom.achievementsList) return;
+    const unlocked = loadAchievements();
+    dom.achievementsList.innerHTML = ACHIEVEMENTS.map((a) => {
+      const isUnlocked = !!unlocked[a.id];
+      const date = unlocked[a.id] ? new Date(unlocked[a.id]).toLocaleDateString() : '';
+      return `<div class="achievement-entry ${isUnlocked ? 'unlocked' : 'locked'}">
+        <span class="achievement-entry-icon">${a.icon}</span>
+        <div class="achievement-entry-details">
+          <span class="achievement-entry-label">${a.label}</span>
+          <span class="achievement-entry-desc">${a.desc}</span>
+          ${date ? `<span class="achievement-entry-date">${date}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   function loadLifetimeStats() {
     try {
       return JSON.parse(localStorage.getItem('typingSurvivor_lifetime') || 'null') || {
         gamesPlayed: 0, totalWords: 0, totalKills: 0, totalScore: 0,
         bestWave: 0, bestScore: 0, bestCombo: 0, bestWpm: 0, bestAccuracy: 0,
-        totalKeysCorrect: 0, totalKeysMissed: 0, totalTime: 0,
+        totalKeysCorrect: 0, totalKeysMissed: 0, totalTime: 0, bossKills: 0,
       };
     } catch {
-      return { gamesPlayed: 0, totalWords: 0, totalKills: 0, totalScore: 0, bestWave: 0, bestScore: 0, bestCombo: 0, bestWpm: 0, bestAccuracy: 0, totalKeysCorrect: 0, totalKeysMissed: 0, totalTime: 0 };
+      return { gamesPlayed: 0, totalWords: 0, totalKills: 0, totalScore: 0, bestWave: 0, bestScore: 0, bestCombo: 0, bestWpm: 0, bestAccuracy: 0, totalKeysCorrect: 0, totalKeysMissed: 0, totalTime: 0, bossKills: 0 };
     }
   }
 
@@ -733,6 +927,7 @@
     ls.totalKeysCorrect = (ls.totalKeysCorrect || 0) + (state.keysCorrect || 0);
     ls.totalKeysMissed = (ls.totalKeysMissed || 0) + (state.keysMissed || 0);
     ls.totalTime += elapsed;
+    ls.bossKills = (ls.bossKills || 0) + (state.bossKills || 0);
     localStorage.setItem('typingSurvivor_lifetime', JSON.stringify(ls));
   }
 
@@ -781,6 +976,7 @@
       enemySpeedCurse: 1,
       weaponKills: { bolt: 0, arc: 0, shrapnel: 0, venom: 0, pulse: 0, ricochet: 0 },
       weaponMasteryApplied: { bolt: 0, arc: 0, shrapnel: 0, venom: 0, pulse: 0, ricochet: 0 },
+      enemiesKilled: 0, bossKills: 0,
       regenRate: 0, regenAccum: 0, shakeAmount: 0,
       waveEnemiesLeft: 0, waveEnemiesTotal: 0, waveActive: false,
       spawnTimer: 0, spawnInterval: 1.5,
@@ -798,6 +994,14 @@
       comboMilestonesHit: new Set(),
       enemiesKilled: 0,
     });
+    if (state.mode === 'daily') {
+      state.maxHp = 50;
+      state.hp = 50;
+      state.damageMultiplier = 2;
+      state.dailyRandom = seededRandom(getDailySeed());
+    } else {
+      state.dailyRandom = null;
+    }
     enemies = []; projectiles = []; particles = []; floatingTexts = [];
     shockwaveRings = []; lightningArcs = []; orbs = []; playerTrail = [];
     powerDrops = []; augmentationDrops = []; beams = []; poisonPools = [];
@@ -822,7 +1026,7 @@
   }
 
   function getBuiltinPool() {
-    const r = Math.random() + state.easyWordBias;
+    const r = getRandom() + state.easyWordBias;
     const wt = state.wave;
     const diff = DIFFICULTY_PRESETS[state.difficulty || 'normal'];
     if (diff.wordShift < 0) {
@@ -857,7 +1061,7 @@
     } else if (state.wordlistSource === 'custom' && state.wordlistOverride?.words?.length) {
       pool = state.wordlistOverride.words;
     } else if (state.wordlistSource === 'api' && state.apiWordBuffer?.length) {
-      const idx = Math.floor(Math.random() * state.apiWordBuffer.length);
+      const idx = Math.floor(getRandom() * state.apiWordBuffer.length);
       const w = state.apiWordBuffer[idx];
       state.apiWordBuffer.splice(idx, 1);
       if (state.apiWordBuffer.length < 10) refillWordBuffer();
@@ -879,42 +1083,52 @@
     const candidates = pool.filter((w) => !used.has(w) && !usedFirst.has(w[0]));
     let word;
     if (candidates.length > 0) {
-      word = candidates[Math.floor(Math.random() * candidates.length)];
+      word = candidates[Math.floor(getRandom() * candidates.length)];
     } else {
       const fallback = pool.filter((w) => !used.has(w));
-      word = fallback.length > 0 ? fallback[Math.floor(Math.random() * fallback.length)] : pool[0];
-      if (used.has(word)) word += String.fromCharCode(97 + Math.floor(Math.random() * 26));
+      word = fallback.length > 0 ? fallback[Math.floor(getRandom() * fallback.length)] : pool[0];
+      if (used.has(word)) word += String.fromCharCode(97 + Math.floor(getRandom() * 26));
     }
     return word;
   }
 
   function getEnemyType() {
-    const w = state.wave, roll = Math.random();
+    const w = state.wave, roll = getRandom();
     if (w >= 8 && roll < 0.10) return 'elite';
-    if (w >= 6 && roll < 0.18) return 'speeder';
-    if (w >= 5 && roll < 0.28) return 'shielder';
-    if (w >= 5 && roll < 0.38) return 'tank';
-    if (w >= 3 && roll < 0.50) return 'splitter';
-    if (w >= 3 && roll < 0.65) return 'scout';
-    if (w >= 4 && roll < 0.75) return 'swarm';
+    if (w >= 7 && roll < 0.14) return 'regenerator';
+    if (w >= 7 && roll < 0.20) return 'teleporter';
+    if (w >= 6 && roll < 0.26) return 'speeder';
+    if (w >= 5 && roll < 0.36) return 'shielder';
+    if (w >= 5 && roll < 0.46) return 'tank';
+    if (w >= 3 && roll < 0.58) return 'splitter';
+    if (w >= 3 && roll < 0.73) return 'scout';
+    if (w >= 4 && roll < 0.83) return 'swarm';
     return 'drone';
   }
 
   function spawnEnemy(forceType) {
     const type = forceType || getEnemyType();
     const def = ENEMY_TYPES[type];
+    if (!def) return;
     const diff = DIFFICULTY_PRESETS[state.difficulty || 'normal'];
     let word, shieldWord;
-    if (type === 'boss') {
+    const isBoss = type === 'boss' || type === 'bossTank' || type === 'bossSplitter' || type === 'bossShielded';
+    if (isBoss) {
       word = getWord(WORDS_BOSS);
+      if (type === 'bossShielded') {
+        shieldWord = getWord(WORDS_SHIELD);
+        const temp = word;
+        word = getWord(WORDS_BOSS, [shieldWord[0]]);
+        if (!word || word[0] === shieldWord[0]) word = temp;
+      }
     } else if (type === 'shielder') {
       shieldWord = getWord(WORDS_SHIELD);
       word = getWord(undefined, [shieldWord[0]]);
     } else {
       word = getWord();
     }
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.max(W, H) / 2 + 40 + Math.random() * 60;
+    const angle = getRandom() * Math.PI * 2;
+    const dist = Math.max(W, H) / 2 + 40 + getRandom() * 60;
     const x = player.x + Math.cos(angle) * dist;
     const y = player.y + Math.sin(angle) * dist;
     const hp = def.hp * diff.hpMult;
@@ -926,13 +1140,21 @@
       rotSpeed: (Math.random() - 0.5) * 2, pulsePhase: Math.random() * Math.PI * 2,
       targeted: false, spawnTime: performance.now(), spawnAlpha: 0,
     };
-    if (type === 'shielder') {
+    if (type === 'shielder' || type === 'bossShielded') {
       enemy.shieldWord = shieldWord;
       enemy.shieldActive = true;
       enemy.shieldTypedIndex = 0;
     }
+    if (type === 'regenerator') {
+      enemy.regenRate = 0.15;
+      enemy.regenTimer = 0;
+    }
+    if (type === 'teleporter') {
+      enemy.teleportTimer = 0;
+      enemy.teleportInterval = 3 + Math.random() * 2;
+    }
     enemies.push(enemy);
-    shockwaveRings.push({ x, y, radius: 5, maxRadius: type === 'boss' ? 80 : 40, life: 1, color: def.color, speed: type === 'boss' ? 150 : 80 });
+    shockwaveRings.push({ x, y, radius: 5, maxRadius: isBossType(type) ? 80 : 40, life: 1, color: def.color, speed: isBossType(type) ? 150 : 80 });
   }
 
   // --- Power drop spawning ---
@@ -1117,7 +1339,7 @@
     if (state.wave % 5 === 0) {
       setTimeout(() => {
         if (state.screen !== 'playing') return;
-        spawnEnemy('boss');
+        spawnEnemy(getBossTypeForWave());
         const bossEl = document.createElement('div');
         bossEl.className = 'wave-announce';
         bossEl.textContent = 'BOSS INCOMING';
@@ -1290,6 +1512,51 @@
     startGame();
   }
 
+  const TUTORIAL_STEPS = [
+    { title: 'TYPE TO SHOOT', text: 'Enemies have words above them. Type the word to fire your weapon and deal damage.' },
+    { title: 'TAB TO TARGET', text: 'Press Tab to cycle between enemies. Click an enemy to target it directly. Targeted shots have a crit chance!' },
+    { title: 'COLLECT DROPS', text: 'Defeated enemies may drop power-ups. Type the word on the drop to activate it. Clear waves to choose upgrades.' },
+  ];
+
+  function showTutorialOverlay() {
+    if (localStorage.getItem('typocalypse-tutorial-done')) return;
+    let step = 0;
+    const overlay = document.createElement('div');
+    overlay.className = 'tutorial-overlay';
+    overlay.innerHTML = `
+      <div class="tutorial-modal">
+        <h3 class="tutorial-title" id="tutorial-title">${TUTORIAL_STEPS[0].title}</h3>
+        <p class="tutorial-text" id="tutorial-text">${TUTORIAL_STEPS[0].text}</p>
+        <div class="tutorial-buttons">
+          <button id="tutorial-skip" class="menu-btn secondary">SKIP</button>
+          <button id="tutorial-next" class="menu-btn">NEXT</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const updateStep = () => {
+      const titleEl = document.getElementById('tutorial-title');
+      const textEl = document.getElementById('tutorial-text');
+      const nextBtn = document.getElementById('tutorial-next');
+      if (!titleEl || !textEl || !nextBtn) return;
+      titleEl.textContent = TUTORIAL_STEPS[step].title;
+      textEl.textContent = TUTORIAL_STEPS[step].text;
+      nextBtn.textContent = step === TUTORIAL_STEPS.length - 1 ? 'GOT IT' : 'NEXT';
+    };
+    const finish = () => {
+      localStorage.setItem('typocalypse-tutorial-done', '1');
+      overlay.remove();
+    };
+    document.getElementById('tutorial-skip')?.addEventListener('click', finish);
+    document.getElementById('tutorial-next')?.addEventListener('click', () => {
+      if (step < TUTORIAL_STEPS.length - 1) {
+        step++;
+        updateStep();
+      } else {
+        finish();
+      }
+    });
+  }
+
   function startGame() {
     resetState();
     if (state.wordlistSource === 'api' && (!state.apiWordBuffer || state.apiWordBuffer.length < 20)) {
@@ -1301,6 +1568,7 @@
     dom.hud.classList.remove('hidden');
     state.screen = 'playing';
     startWave();
+    showTutorialOverlay();
     audio.waveStart();
   }
 
@@ -1316,14 +1584,25 @@
     const wDef = WEAPONS[state.weapon];
 
     saveLifetimeStats();
+    checkAchievements();
     const scores = saveHighScore({
       score: state.score, wave: state.wave, weapon: state.weapon,
       difficulty: state.difficulty || 'normal',
       date: new Date().toLocaleDateString(),
     });
     const rank = scores.findIndex((s) => s.score === state.score && s.wave === state.wave);
+    const isNewHighScore = rank === 0;
+
+    if (isNewHighScore) {
+      const flash = document.createElement('div');
+      flash.className = 'new-high-score-flash';
+      flash.textContent = 'NEW HIGH SCORE!';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 2000);
+    }
 
     dom.gameOverStats.innerHTML = `
+      <div class="game-over-wave">REACHED WAVE ${state.wave}</div>
       <div class="stat-row"><span class="stat-label">SCORE</span><span class="stat-value">${state.score.toLocaleString()}</span></div>
       <div class="stat-row"><span class="stat-label">WAVE</span><span class="stat-value">${state.wave}</span></div>
       <div class="stat-row"><span class="stat-label">WEAPON</span><span class="stat-value" style="color:${wDef.color}">${wDef.icon} ${wDef.name}</span></div>
@@ -1344,6 +1623,9 @@
     dom.weaponScreen.classList.add('hidden');
     dom.pauseScreen.classList.add('hidden');
     dom.settingsScreen.classList.add('hidden');
+    dom.scoresScreen.classList.add('hidden');
+    dom.statsScreen.classList.add('hidden');
+    dom.achievementsScreen.classList.add('hidden');
     dom.menuScreen.classList.remove('hidden');
   }
 
@@ -1633,12 +1915,13 @@
       }
     }
     const def = ENEMY_TYPES[enemy.type];
-    spawnParticles(enemy.x, enemy.y, enemy.color, enemy.type === 'boss' ? 50 : 20, enemy.type === 'boss' ? 8 : 5);
-    state.shakeAmount = enemy.type === 'boss' ? 12 : 4;
+    spawnParticles(enemy.x, enemy.y, enemy.color, isBossType(enemy.type) ? 50 : 20, isBossType(enemy.type) ? 8 : 5);
+    state.shakeAmount = isBossType(enemy.type) ? 12 : 4;
     state.combo++; state.comboTimer = 3;
     state.maxCombo = Math.max(state.maxCombo, state.combo);
     state.enemiesKilled = (state.enemiesKilled || 0) + 1;
-    state.exp = (state.exp || 0) + (enemy.type === 'boss' ? 2 : 1);
+    if (isBossType(enemy.type)) state.bossKills = (state.bossKills || 0) + 1;
+    state.exp = (state.exp || 0) + (isBossType(enemy.type) ? 2 : 1);
     if (state.exp >= (state.expToNextLevel || 5)) {
       state.level = (state.level || 1) + 1;
       state.exp = 0;
@@ -1656,7 +1939,7 @@
     spawnFloatingText(enemy.x, enemy.y - 20, `+${score}`, '#00f0ff');
     spawnOrbs(enemy.x, enemy.y, score * 0.1, enemy.color);
 
-    if (enemy.type === 'boss') {
+    if (isBossType(enemy.type)) {
       audio.bossKill();
       shockwaveRings.push({ x: enemy.x, y: enemy.y, radius: 10, maxRadius: 300, life: 1, color: '#ff2d55', speed: 400 });
       const announce = document.createElement('div');
@@ -1667,10 +1950,27 @@
       document.body.appendChild(announce);
       setTimeout(() => announce.remove(), 2500);
     } else {
-      audio.killEnemy();
+      audio.killEnemy(state.combo);
     }
 
-    if (enemy.type === 'splitter') {
+    if (enemy.type === 'bossSplitter') {
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.random() * 0.5;
+        const fx = enemy.x + Math.cos(a) * 40;
+        const fy = enemy.y + Math.sin(a) * 40;
+        const fDef = ENEMY_TYPES.fragment;
+        const fw = getWord(WORDS_EASY);
+        enemies.push({
+          x: fx, y: fy, type: 'fragment', word: fw, typedIndex: 0,
+          hp: fDef.hp, maxHp: fDef.hp,
+          speed: fDef.speed * (1 + state.wave * 0.04),
+          size: fDef.size, sides: fDef.sides, color: fDef.color,
+          scoreValue: fDef.scoreValue, angle: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 3, pulsePhase: Math.random() * Math.PI * 2,
+          targeted: false, spawnTime: performance.now(), spawnAlpha: 0.6,
+        });
+      }
+    } else if (enemy.type === 'splitter') {
       for (let i = 0; i < 2; i++) {
         const a = Math.random() * Math.PI * 2;
         const fx = enemy.x + Math.cos(a) * 30;
@@ -1689,6 +1989,19 @@
       }
     }
 
+    if (state.gamblerCurse) {
+      const roll = Math.random();
+      if (roll < 0.33) {
+        state.hp = Math.min(state.maxHp, state.hp + 15);
+        spawnFloatingText(player.x, player.y - 40, 'GAMBLER: +15 HP', '#4ade80');
+        spawnParticles(player.x, player.y, '#4ade80', 10, 2);
+      } else if (roll < 0.66) {
+        state.hp = Math.max(0, state.hp - 10);
+        spawnFloatingText(player.x, player.y - 40, 'GAMBLER: -10 HP', '#ef4444');
+        spawnParticles(player.x, player.y, '#ef4444', 10, 2);
+        if (state.hp <= 0) showGameOver();
+      }
+    }
     if (state.combo > 0 && state.combo % 5 === 0) {
       spawnFloatingText(player.x, player.y - 40, `COMBO x${state.combo}!`, '#f472b6');
     }
@@ -1734,7 +2047,7 @@
     enemy.hp = -999;
     if (state.targetEnemy === enemy) { state.targetEnemy = null; state.currentInput = ''; }
 
-    if (enemy.type === 'boss') {
+    if (isBossType(enemy.type)) {
       forcePowerDrop(enemy.x, enemy.y);
       trySpawnAugmentationDrop(enemy.x, enemy.y, true);
     } else {
@@ -1779,7 +2092,7 @@
     }
     if (state.screen === 'paused') {
       e.preventDefault();
-      if (e.key === 'Escape') togglePause();
+      if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') togglePause();
       return;
     }
     if (state.screen !== 'playing') return;
@@ -1865,7 +2178,7 @@
       }
       const enemyMatches = enemies.filter((en) => {
         if (en.hp <= 0 || en.spawnAlpha < 0.5 || en === excludeEnemy) return false;
-        if (en.type === 'shielder' && en.shieldActive) return en.shieldWord[0] === key;
+        if ((en.type === 'shielder' || en.type === 'bossShielded') && en.shieldActive) return en.shieldWord[0] === key;
         return en.word[0] === key;
       });
       if (enemyMatches.length > 0) {
@@ -1876,7 +2189,7 @@
         state.targetEnemy = enemyMatches[0];
         state.targetEnemy.targeted = true;
         state.currentInput = key;
-        if (state.targetEnemy.type === 'shielder' && state.targetEnemy.shieldActive) {
+        if ((state.targetEnemy.type === 'shielder' || state.targetEnemy.type === 'bossShielded') && state.targetEnemy.shieldActive) {
           state.targetEnemy.shieldTypedIndex = 1;
         } else {
           state.targetEnemy.typedIndex = 1;
@@ -1952,7 +2265,7 @@
     // Currently targeting an enemy
     if (state.targetEnemy) {
       const te = state.targetEnemy;
-      if (te.type === 'shielder' && te.shieldActive) {
+      if ((te.type === 'shielder' || te.type === 'bossShielded') && te.shieldActive) {
         const expected = te.shieldWord[te.shieldTypedIndex];
         if (key === expected) {
           state.keysCorrect++;
@@ -2042,7 +2355,35 @@
     selectTargetViaClick(x, y);
   });
 
-  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (!dom.scoresScreen.classList.contains('hidden')) {
+        dom.scoresScreen.classList.add('hidden');
+        dom.menuScreen.classList.remove('hidden');
+        e.preventDefault();
+        return;
+      }
+      if (!dom.statsScreen.classList.contains('hidden')) {
+        dom.statsScreen.classList.add('hidden');
+        dom.menuScreen.classList.remove('hidden');
+        e.preventDefault();
+        return;
+      }
+      if (!dom.settingsScreen.classList.contains('hidden')) {
+        dom.settingsScreen.classList.add('hidden');
+        dom.menuScreen.classList.remove('hidden');
+        e.preventDefault();
+        return;
+      }
+      if (!dom.achievementsScreen.classList.contains('hidden')) {
+        dom.achievementsScreen.classList.add('hidden');
+        dom.menuScreen.classList.remove('hidden');
+        e.preventDefault();
+        return;
+      }
+    }
+    handleKeyDown(e);
+  });
   dom.startBtn.addEventListener('click', showWeaponSelect);
   dom.restartBtn.addEventListener('click', showWeaponSelect);
   dom.menuBtn.addEventListener('click', showMenu);
@@ -2053,13 +2394,25 @@
 
   // Scores screen
   if (dom.scoresBtn) dom.scoresBtn.addEventListener('click', () => {
+    state.scoresViewMode = state.scoresViewMode || 'all';
     renderScoresScreen();
+    document.querySelectorAll('.scores-tab').forEach((t) => t.classList.toggle('active', t.id === 'scores-tab-' + state.scoresViewMode));
     dom.menuScreen.classList.add('hidden');
     dom.scoresScreen.classList.remove('hidden');
   });
   if (dom.scoresCloseBtn) dom.scoresCloseBtn.addEventListener('click', () => {
     dom.scoresScreen.classList.add('hidden');
     dom.menuScreen.classList.remove('hidden');
+  });
+  document.getElementById('scores-tab-all')?.addEventListener('click', () => {
+    state.scoresViewMode = 'all';
+    renderScoresScreen();
+    document.querySelectorAll('.scores-tab').forEach((t) => t.classList.toggle('active', t.id === 'scores-tab-all'));
+  });
+  document.getElementById('scores-tab-daily')?.addEventListener('click', () => {
+    state.scoresViewMode = 'daily';
+    renderScoresScreen();
+    document.querySelectorAll('.scores-tab').forEach((t) => t.classList.toggle('active', t.id === 'scores-tab-daily'));
   });
 
   // Stats screen
@@ -2073,13 +2426,38 @@
     dom.menuScreen.classList.remove('hidden');
   });
 
+  if (dom.achievementsBtn) dom.achievementsBtn.addEventListener('click', () => {
+    renderAchievementsScreen();
+    dom.menuScreen.classList.add('hidden');
+    dom.achievementsScreen.classList.remove('hidden');
+  });
+  if (dom.achievementsCloseBtn) dom.achievementsCloseBtn.addEventListener('click', () => {
+    dom.achievementsScreen.classList.add('hidden');
+    dom.menuScreen.classList.remove('hidden');
+  });
+
   // Pause
+  function updatePauseStats() {
+    const el = document.getElementById('pause-stats');
+    if (!el) return;
+    const elapsed = (performance.now() - state.startTime) / 1000;
+    const m = Math.floor(elapsed / 60);
+    const s = Math.floor(elapsed % 60);
+    const wpm = elapsed > 0 ? Math.round((state.totalCharsTyped / 5) / (elapsed / 60)) : 0;
+    el.innerHTML = `
+      <div class="pause-stat-row">Wave ${state.wave} · Score ${state.score.toLocaleString()}</div>
+      <div class="pause-stat-row">Time ${m}:${String(s).padStart(2, '0')} · WPM ${wpm}</div>
+    `;
+  }
+
   function togglePause() {
     if (state.screen !== 'playing' && state.screen !== 'paused') return;
     if (state.screen === 'playing') {
       state.screen = 'paused';
       dom.pauseScreen.classList.remove('hidden');
+      updatePauseStats();
       updateDensityButtons();
+      updateSoundButtons();
     } else {
       state.screen = 'playing';
       dom.pauseScreen.classList.add('hidden');
@@ -2093,8 +2471,10 @@
     lastTime = performance.now();
   });
   if (dom.pauseRestartBtn) dom.pauseRestartBtn.addEventListener('click', () => {
-    dom.pauseScreen.classList.add('hidden');
-    showWeaponSelect();
+    if (confirm('Restart run? Progress will be lost.')) {
+      dom.pauseScreen.classList.add('hidden');
+      showWeaponSelect();
+    }
   });
   if (dom.pauseQuitBtn) dom.pauseQuitBtn.addEventListener('click', () => {
     dom.pauseScreen.classList.add('hidden');
@@ -2241,7 +2621,7 @@
     }
 
     // Shielder hex barrier
-    if (e.type === 'shielder' && e.shieldActive && alpha > 0.5) {
+    if ((e.type === 'shielder' || e.type === 'bossShielded') && e.shieldActive && alpha > 0.5) {
       ctx.save(); ctx.globalAlpha = alpha * (0.5 + Math.sin(t * 4) * 0.15);
       ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2; ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 12;
       ctx.beginPath();
@@ -2290,7 +2670,7 @@
     const stackIndex = nearby.indexOf(e);
     const wordOffsetY = stackIndex * 14;
 
-    if (e.type === 'shielder' && e.shieldActive) {
+    if ((e.type === 'shielder' || e.type === 'bossShielded') && e.shieldActive) {
       const sw = e.shieldWord;
       const shieldY = e.y - e.size - 26 - wordOffsetY;
       for (let i = 0; i < sw.length; i++) {
@@ -2629,7 +3009,7 @@
     // Typing display
     const target = state.targetAugDrop || state.targetDrop || state.targetEnemy;
     if (target) {
-      const isShieldPhase = target.shieldWord && target.type === 'shielder' && target.shieldActive;
+      const isShieldPhase = target.shieldWord && (target.type === 'shielder' || target.type === 'bossShielded') && target.shieldActive;
       const word = isShieldPhase ? target.shieldWord : target.word;
       let html = '';
       if (isShieldPhase) html += '<span style="color:#38bdf8;font-size:0.7em">SHIELD: </span>';
@@ -2663,6 +3043,19 @@
     if (state.comboSpeedTimer > 0) pills += `<span class="effect-pill" style="border:1px solid #4ade80;color:#4ade80">SWIFT ${state.comboSpeedTimer.toFixed(1)}s</span>`;
     if (state.comboCritTimer > 0) pills += `<span class="effect-pill" style="border:1px solid #a78bfa;color:#a78bfa">CRIT+ ${state.comboCritTimer.toFixed(1)}s</span>`;
     dom.hudEffects.innerHTML = pills;
+
+    const boss = enemies.find((e) => e.hp > 0 && isBossType(e.type));
+    const bossContainer = document.getElementById('boss-health-container');
+    const bossFill = document.getElementById('boss-health-fill');
+    const bossText = document.getElementById('boss-health-text');
+    if (boss && bossContainer && bossFill && bossText) {
+      bossContainer.classList.remove('hidden');
+      const pct = Math.max(0, (boss.hp / boss.maxHp) * 100);
+      bossFill.style.width = `${pct}%`;
+      bossText.textContent = `${Math.ceil(boss.hp)} / ${boss.maxHp}`;
+    } else if (bossContainer) {
+      bossContainer.classList.add('hidden');
+    }
   }
 
   // --- Game loop ---
@@ -2683,8 +3076,10 @@
       gridPulse += frameDt * 0.5;
 
       ctx.save();
-      if (state.shakeAmount > 0.5) {
+      if (state.shakeAmount > 0.5 && !reducedMotion) {
         ctx.translate((Math.random() - 0.5) * state.shakeAmount, (Math.random() - 0.5) * state.shakeAmount);
+        state.shakeAmount *= state.shakeDecay;
+      } else if (state.shakeAmount > 0.5) {
         state.shakeAmount *= state.shakeDecay;
       }
 
@@ -2752,6 +3147,25 @@
       enemies.forEach((e) => {
         if (e.hp <= 0) return;
         if (!isFrozen) {
+          if (e.type === 'regenerator' && e.regenRate) {
+            e.regenTimer = (e.regenTimer || 0) + dt;
+            if (e.regenTimer >= 1) {
+              e.regenTimer = 0;
+              e.hp = Math.min(e.maxHp, e.hp + e.regenRate);
+              if (e.hp < e.maxHp) spawnParticles(e.x, e.y, '#10b981', 2, 0.5);
+            }
+          }
+          if (e.type === 'teleporter' && e.teleportInterval) {
+            e.teleportTimer = (e.teleportTimer || 0) + dt;
+            if (e.teleportTimer >= e.teleportInterval) {
+              e.teleportTimer = 0;
+              const angle = Math.random() * Math.PI * 2;
+              const dist = 80 + Math.random() * 120;
+              e.x = player.x + Math.cos(angle) * dist;
+              e.y = player.y + Math.sin(angle) * dist;
+              spawnParticles(e.x, e.y, '#8b5cf6', 8, 3);
+            }
+          }
           const dx = player.x - e.x, dy = player.y - e.y, dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > 1) {
             let speedMult = state.enemySlowFactor * (state.enemySpeedCurse || 1);
@@ -3016,6 +3430,8 @@
   // Init
   loadTheme();
   loadParticleDensity();
+  loadSoundSettings();
+  loadAccessibilitySettings();
 
   function updateDensityButtons() {
     const d = getParticleDensity();
@@ -3037,6 +3453,62 @@
 
   wireDensityButtons();
   updateDensityButtons();
+
+  function updateSoundButtons() {
+    const muteBtn = document.getElementById('sound-mute-btn');
+    const pauseMuteBtn = document.getElementById('pause-sound-mute-btn');
+    const volLabel = document.getElementById('sound-volume-label');
+    const pauseVolLabel = document.getElementById('pause-sound-volume-label');
+    const volSlider = document.getElementById('sound-volume-slider');
+    const pauseVolSlider = document.getElementById('pause-sound-volume-slider');
+    if (muteBtn) muteBtn.textContent = soundMuted ? 'UNMUTE' : 'MUTE';
+    if (pauseMuteBtn) pauseMuteBtn.textContent = soundMuted ? 'UNMUTE' : 'MUTE';
+    const pct = Math.round(soundVolume * 100);
+    if (volLabel) volLabel.textContent = pct + '%';
+    if (pauseVolLabel) pauseVolLabel.textContent = pct + '%';
+    if (volSlider) volSlider.value = pct;
+    if (pauseVolSlider) pauseVolSlider.value = pct;
+  }
+
+  function wireSoundButtons() {
+    const muteBtn = document.getElementById('sound-mute-btn');
+    const pauseMuteBtn = document.getElementById('pause-sound-mute-btn');
+    const volSlider = document.getElementById('sound-volume-slider');
+    const pauseVolSlider = document.getElementById('pause-sound-volume-slider');
+    if (muteBtn) muteBtn.addEventListener('click', () => { setSoundMuted(!soundMuted); updateSoundButtons(); });
+    if (pauseMuteBtn) pauseMuteBtn.addEventListener('click', () => { setSoundMuted(!soundMuted); updateSoundButtons(); });
+    const onVolChange = (el) => { setSoundVolume(parseInt(el.value, 10) / 100); updateSoundButtons(); };
+    if (volSlider) volSlider.addEventListener('input', () => onVolChange(volSlider));
+    if (pauseVolSlider) pauseVolSlider.addEventListener('input', () => onVolChange(pauseVolSlider));
+  }
+
+  wireSoundButtons();
+  updateSoundButtons();
+
+  function updateAccessibilityButtons() {
+    document.getElementById('colorblind-btn')?.classList.toggle('active', colorblindMode);
+    document.getElementById('font-size-btn')?.textContent = 'FONT: ' + fontSizeMode.toUpperCase();
+    document.getElementById('reduced-motion-btn')?.classList.toggle('active', reducedMotion);
+  }
+
+  function wireAccessibilityButtons() {
+    document.getElementById('colorblind-btn')?.addEventListener('click', () => {
+      setColorblindMode(!colorblindMode);
+      updateAccessibilityButtons();
+    });
+    document.getElementById('font-size-btn')?.addEventListener('click', () => {
+      const next = fontSizeMode === 'small' ? 'medium' : fontSizeMode === 'medium' ? 'large' : 'small';
+      setFontSizeMode(next);
+      updateAccessibilityButtons();
+    });
+    document.getElementById('reduced-motion-btn')?.addEventListener('click', () => {
+      setReducedMotion(!reducedMotion);
+      updateAccessibilityButtons();
+    });
+  }
+
+  wireAccessibilityButtons();
+  updateAccessibilityButtons();
 
   function loadWordlistSettings() {
     try {
@@ -3093,6 +3565,8 @@
 
   if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => {
     updateDensityButtons();
+    updateSoundButtons();
+    updateAccessibilityButtons();
     const input = document.getElementById('custom-words-input');
     if (input && state.wordlistOverride?.words) input.value = state.wordlistOverride.words.join('\n');
     document.querySelectorAll('.word-source-btn').forEach((b) => b.classList.toggle('active', b.dataset.source === state.wordlistSource));

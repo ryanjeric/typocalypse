@@ -369,10 +369,131 @@ body.light-mode .health-text {
 
 .typing-display {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 1.6rem;
+  font-size: var(--typing-font-size, 1.6rem);
   letter-spacing: 0.15em;
   min-height: 2em;
   color: var(--muted2);
+}
+
+body.font-small {
+  --typing-font-size: 1.2rem;
+  --hud-font-size: 0.85rem;
+}
+
+body.font-medium {
+  --typing-font-size: 1.6rem;
+  --hud-font-size: 1rem;
+}
+
+body.font-large {
+  --typing-font-size: 2rem;
+  --hud-font-size: 1.2rem;
+}
+
+body.colorblind-mode canvas {
+  filter: contrast(1.2) saturate(0.7);
+}
+
+body.reduced-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+.accessibility-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  padding: 0.4em 0.8em;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.accessibility-btn:hover, .accessibility-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pause-stats {
+  margin-bottom: 1em;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.pause-stat-row {
+  margin: 0.2em 0;
+}
+
+.boss-health-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.3em 0.8em;
+  margin-bottom: 0.3em;
+  background: rgba(255, 45, 85, 0.15);
+  border: 1px solid rgba(255, 45, 85, 0.5);
+  border-radius: 4px;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.boss-health-label {
+  font-size: 0.65rem;
+  color: #ff2d55;
+  font-weight: 700;
+  min-width: 2.5em;
+}
+
+.boss-health-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.boss-health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff2d55, #ff6b6b);
+  transition: width 0.15s ease;
+}
+
+.boss-health-text {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.8);
+  min-width: 3em;
+}
+
+.game-over-wave {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.5em;
+  letter-spacing: 0.1em;
+}
+
+.new-high-score-flash {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #fbbf24;
+  text-shadow: 0 0 60px rgba(251, 191, 36, 0.8);
+  z-index: 200;
+  animation: highScorePulse 0.5s ease-out;
+}
+
+@keyframes highScorePulse {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 /* Active effects pills */
@@ -824,6 +945,37 @@ body.light-mode .exp-progress {
 }
 
 /* Scores list */
+.scores-tabs {
+  display: flex;
+  gap: 0.5em;
+  margin-bottom: 1em;
+  justify-content: center;
+}
+
+.scores-tab {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.7rem;
+  padding: 0.4em 1em;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.scores-tab:hover, .scores-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.scores-daily-header {
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-bottom: 0.5em;
+  text-align: center;
+}
+
 .scores-list {
   margin-bottom: 2em;
 }
@@ -890,6 +1042,117 @@ body.light-mode .exp-progress {
   padding: 0.6em 0;
   border-bottom: 1px solid var(--card-border);
   font-size: 0.9rem;
+}
+
+.achievements-list {
+  margin-bottom: 2em;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.achievement-entry {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  padding: 0.8em 1em;
+  border-bottom: 1px solid var(--card-border);
+  font-size: 0.9rem;
+}
+
+.achievement-entry.locked {
+  opacity: 0.5;
+}
+
+.achievement-entry.unlocked {
+  background: var(--card-hover-bg);
+}
+
+.achievement-entry-icon {
+  font-size: 1.8rem;
+  width: 2.5em;
+  text-align: center;
+}
+
+.achievement-entry-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+}
+
+.achievement-entry-label {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.achievement-entry-desc {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.achievement-entry-date {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.achievement-popup {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  padding: 1em 1.5em;
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 30px var(--accent-glow);
+  z-index: 1000;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.achievement-popup .achievement-icon {
+  font-size: 2.5rem;
+}
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.tutorial-modal {
+  background: var(--card-bg);
+  border: 2px solid var(--accent);
+  padding: 2em;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 0 40px var(--accent-glow);
+}
+
+.tutorial-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin-bottom: 1em;
+}
+
+.tutorial-text {
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1.5em;
+}
+
+.tutorial-buttons {
+  display: flex;
+  gap: 1em;
+  justify-content: center;
 }
 
 /* Pause button */
@@ -1047,4 +1310,33 @@ body.light-mode .exp-progress {
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.sound-btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.5em 1.25em;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sound-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.sound-slider {
+  width: 120px;
+  accent-color: var(--accent);
+}
+
+.sound-volume-label {
+  min-width: 2.5em;
+  font-size: 0.85rem;
+  color: var(--text-dim);
 }
