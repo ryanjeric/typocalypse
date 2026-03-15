@@ -242,7 +242,7 @@
   const DIFFICULTY_PRESETS = {
     easy:   { hpMult: 0.7, speedMult: 0.8, spawnMult: 1.3, wordShift: -1, label: 'EASY', color: '#4ade80' },
     normal: { hpMult: 1.0, speedMult: 1.0, spawnMult: 1.0, wordShift: 0,  label: 'NORMAL', color: '#fbbf24' },
-    hard:   { hpMult: 1.5, speedMult: 1.2, spawnMult: 0.8, wordShift: 1,  label: 'HARD', color: '#ef4444' },
+    hard:   { hpMult: 1.5, speedMult: 1.2, spawnMult: 0.9, wordShift: 1,  label: 'HARD', color: '#ef4444' },
   };
 
   const WORDS_BOSS = [
@@ -1166,8 +1166,8 @@
     if (w >= 6 && roll < 0.26) return 'speeder';
     if (w >= 5 && roll < 0.36) return 'shielder';
     if (w >= 5 && roll < 0.46) return 'tank';
-    if (w >= 5 && roll < 0.54) return 'stealth';
-    if (w >= 4 && roll < 0.62) return 'berserker';
+    if (w >= 6 && roll < 0.54) return 'stealth';
+    if (w >= 5 && roll < 0.62) return 'berserker';
     if (w >= 3 && roll < 0.70) return 'splitter';
     if (w >= 3 && roll < 0.85) return 'scout';
     if (w >= 4 && roll < 0.93) return 'swarm';
@@ -1202,11 +1202,14 @@
     const dist = Math.max(W, H) / 2 + 40 + getRandom() * 60;
     const x = player.x + Math.cos(angle) * dist;
     const y = player.y + Math.sin(angle) * dist;
-    const subScale = state.subWeapon ? { hp: 1.25, speed: 1.1 } : { hp: 1, speed: 1 };
-    const hp = def.hp * diff.hpMult * subScale.hp;
+    const subScale = state.subWeapon ? { hp: 1.15, speed: 1.1 } : { hp: 1, speed: 1 };
+    let hp = def.hp * diff.hpMult * subScale.hp;
+    if (isMiniboss && state.wave <= 3) hp *= 0.7;
+    else if (isMiniboss && state.wave <= 6) hp *= 0.85;
+    hp = Math.max(1, Math.floor(hp));
     const enemy = {
       x, y, type, word, typedIndex: 0, hp, maxHp: hp,
-      speed: def.speed * diff.speedMult * subScale.speed * (0.9 + Math.random() * 0.2) * (1 + state.wave * 0.04),
+      speed: def.speed * diff.speedMult * subScale.speed * (0.9 + Math.random() * 0.2) * (1 + state.wave * (state.wave <= 5 ? 0.02 : 0.04)),
       size: def.size, sides: def.sides, color: def.color,
       scoreValue: def.scoreValue, angle: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 2, pulsePhase: Math.random() * Math.PI * 2,
@@ -1400,13 +1403,27 @@
   function startWave() {
     const diff = DIFFICULTY_PRESETS[state.difficulty || 'normal'];
     const levelBonus = Math.floor((state.level || 1) * 1.5);
-    const base = 8 + state.wave * 4 + levelBonus;
+    let base = 8 + state.wave * 4 + levelBonus;
+    const isMinibossWave = state.wave % 3 === 0 && state.wave % 5 !== 0 && state.wave >= 3;
+    const isBossWave = state.wave % 5 === 0;
+    if (isMinibossWave) {
+      base = Math.max(6, Math.floor(base * 0.55));
+    } else if (isBossWave) {
+      base = Math.max(8, Math.floor(base * 0.75));
+    } else if (state.wave % 3 === 1 || state.wave % 5 === 1) {
+      base = Math.floor(base * 0.8);
+    }
+    if (state.wave >= 10) base = Math.min(base, 35 + 2 * state.wave);
+    if (state.mode === 'daily') base = Math.max(6, Math.floor(base * 0.9));
     state.waveEnemiesTotal = base;
     state.waveEnemiesLeft = base;
     state.waveActive = true;
     state.spawnTimer = 0;
-    const spawnMultSub = state.subWeapon ? 0.9 : 1;
-    state.spawnInterval = Math.max(0.3, (1.5 - state.wave * 0.08) * diff.spawnMult * spawnMultSub);
+    const spawnMultSub = state.subWeapon ? 0.95 : 1;
+    let spawnInterval = Math.max(0.4, (0.9 - state.wave * 0.04) * diff.spawnMult * spawnMultSub);
+    if (isMinibossWave) spawnInterval *= 1.2;
+    if (isBossWave) spawnInterval *= 1.1;
+    state.spawnInterval = spawnInterval;
     const el = document.createElement('div');
     el.className = 'wave-announce';
     el.textContent = `WAVE ${state.wave}`;
