@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typocalypse — Typing Survival</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="menu-screen">
+    <div class="menu-content">
+      <h1 class="game-title">TYPOCALYPSE</h1>
+      <p class="game-subtitle">TYPING SURVIVAL</p>
+      <div class="menu-stats" id="menu-stats"></div>
+      <button id="start-btn" class="menu-btn">START RUN</button>
+      <button id="scores-btn" class="menu-btn secondary">SCORES</button>
+      <button id="stats-btn" class="menu-btn secondary">STATS</button>
+      <button id="achievements-btn" class="menu-btn secondary">ACHIEVEMENTS</button>
+      <button id="settings-btn" class="menu-btn secondary">SETTINGS</button>
+      <button id="theme-btn" class="theme-toggle">LIGHT MODE</button>
+      <p class="menu-hint">Type words to destroy enemies. Survive the horde.</p>
+    </div>
+    <div class="menu-bg-particles" id="menu-particles"></div>
+  </div>
+
+  <div id="weapon-screen" class="hidden">
+    <div class="weapon-content">
+      <h2 class="weapon-title">CHOOSE YOUR WEAPON</h2>
+      <p class="weapon-subtitle">Each weapon has a unique attack pattern</p>
+      <div class="mode-selector" id="mode-selector">
+        <button class="mode-btn active" data-mode="endless" style="color:#00f0ff;border-color:#00f0ff">ENDLESS</button>
+        <button class="mode-btn" data-mode="relaxed" style="color:#4ade80;border-color:#4ade80">RELAXED</button>
+        <button class="mode-btn" data-mode="typist" style="color:#a78bfa;border-color:#a78bfa">TYPIST</button>
+        <button class="mode-btn" data-mode="daily" style="color:#f59e0b;border-color:#f59e0b">DAILY</button>
+      </div>
+      <div class="difficulty-selector" id="difficulty-selector">
+        <button class="diff-btn" data-diff="easy" style="color:#4ade80;border-color:#4ade80">EASY</button>
+        <button class="diff-btn active" data-diff="normal" style="color:#fbbf24;border-color:#fbbf24">NORMAL</button>
+        <button class="diff-btn" data-diff="hard" style="color:#ef4444;border-color:#ef4444">HARD</button>
+      </div>
+      <div class="weapon-cards" id="weapon-cards"></div>
+    </div>
+  </div>
+
+  <div id="upgrade-screen" class="hidden">
+    <div class="upgrade-content">
+      <h2 class="upgrade-title" id="upgrade-title">WAVE CLEAR</h2>
+      <p class="upgrade-subtitle" id="upgrade-subtitle">Choose an upgrade</p>
+      <div class="upgrade-cards" id="upgrade-cards"></div>
+    </div>
+  </div>
+
+  <div id="game-over-screen" class="hidden">
+    <div class="game-over-content">
+      <h2 class="game-over-title">SYSTEM OFFLINE</h2>
+      <div class="game-over-stats" id="game-over-stats"></div>
+      <button id="restart-btn" class="menu-btn">TRY AGAIN</button>
+      <button id="menu-btn" class="menu-btn secondary">MAIN MENU</button>
+    </div>
+  </div>
+
+  <div id="scores-screen" class="hidden">
+    <div class="overlay-content">
+      <h2 class="overlay-title">HIGH SCORES</h2>
+      <div class="scores-tabs">
+        <button id="scores-tab-all" class="scores-tab active">ALL-TIME</button>
+        <button id="scores-tab-daily" class="scores-tab">DAILY</button>
+      </div>
+      <div class="scores-list" id="scores-list"></div>
+      <button id="scores-close-btn" class="menu-btn secondary">BACK</button>
+    </div>
+  </div>
+
+  <div id="stats-screen" class="hidden">
+    <div class="overlay-content">
+      <h2 class="overlay-title">LIFETIME STATS</h2>
+      <div class="stats-list" id="stats-list"></div>
+      <button id="stats-close-btn" class="menu-btn secondary">BACK</button>
+    </div>
+  </div>
+
+  <div id="achievements-screen" class="hidden">
+    <div class="overlay-content">
+      <h2 class="overlay-title">ACHIEVEMENTS</h2>
+      <div class="achievements-list" id="achievements-list"></div>
+      <button id="achievements-close-btn" class="menu-btn secondary">BACK</button>
+    </div>
+  </div>
+
+  <div id="settings-screen" class="hidden">
+    <div class="overlay-content">
+      <h2 class="overlay-title">SETTINGS</h2>
+      <div class="settings-section">
+        <span class="settings-label">SOUND</span>
+        <div class="settings-buttons">
+          <button id="sound-mute-btn" class="sound-btn">MUTE</button>
+          <input type="range" id="sound-volume-slider" min="0" max="100" value="100" class="sound-slider" />
+          <span id="sound-volume-label" class="sound-volume-label">100%</span>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">PARTICLE DENSITY</span>
+        <div class="settings-buttons">
+          <button id="settings-density-low" class="density-btn" data-density="0.33">LOW</button>
+          <button id="settings-density-med" class="density-btn" data-density="0.66">MED</button>
+          <button id="settings-density-high" class="density-btn" data-density="1">HIGH</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">WORD SOURCE</span>
+        <div class="settings-buttons">
+          <button id="word-source-builtin" class="word-source-btn active" data-source="builtin">BUILT-IN</button>
+          <button id="word-source-custom" class="word-source-btn" data-source="custom">CUSTOM</button>
+          <button id="word-source-api" class="word-source-btn" data-source="api">API (EN)</button>
+        </div>
+      </div>
+      <div class="settings-section" id="custom-words-section">
+        <span class="settings-label">CUSTOM WORDLIST (one per line)</span>
+        <textarea id="custom-words-input" rows="6" placeholder="word1&#10;word2&#10;word3"></textarea>
+        <button id="save-custom-words" class="menu-btn secondary" style="margin-top:0.5em">SAVE</button>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">ACCESSIBILITY</span>
+        <div class="settings-buttons">
+          <button id="colorblind-btn" class="accessibility-btn" data-opt="colorblind">COLORBLIND</button>
+          <button id="font-size-btn" class="accessibility-btn" data-opt="fontSize">FONT SIZE</button>
+          <button id="reduced-motion-btn" class="accessibility-btn" data-opt="reducedMotion">REDUCED MOTION</button>
+        </div>
+      </div>
+      <button id="settings-close-btn" class="menu-btn secondary">BACK</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="hidden">
+    <div class="overlay-content">
+      <h2 class="overlay-title">PAUSED</h2>
+      <div class="pause-stats" id="pause-stats"></div>
+      <div class="settings-section">
+        <span class="settings-label">SOUND</span>
+        <div class="settings-buttons">
+          <button id="pause-sound-mute-btn" class="sound-btn">MUTE</button>
+          <input type="range" id="pause-sound-volume-slider" min="0" max="100" value="100" class="sound-slider" />
+          <span id="pause-sound-volume-label" class="sound-volume-label">100%</span>
+        </div>
+      </div>
+      <div class="settings-section">
+        <span class="settings-label">PARTICLE DENSITY</span>
+        <div class="settings-buttons">
+          <button id="density-low" class="density-btn" data-density="0.33">LOW</button>
+          <button id="density-med" class="density-btn" data-density="0.66">MED</button>
+          <button id="density-high" class="density-btn" data-density="1">HIGH</button>
+        </div>
+      </div>
+      <button id="pause-resume-btn" class="menu-btn">RESUME</button>
+      <button id="pause-restart-btn" class="menu-btn secondary">RESTART</button>
+      <button id="pause-quit-btn" class="menu-btn secondary">QUIT TO MENU</button>
+    </div>
+  </div>
+
+  <canvas id="game-canvas"></canvas>
+
+  <div id="hud" class="hidden">
+    <button id="pause-btn" class="pause-btn-hud">II</button>
+    <button id="theme-toggle-hud" class="theme-toggle-hud">THEME</button>
+    <div class="hud-top">
+      <div class="hud-item">
+        <span class="hud-label">WAVE</span>
+        <span class="hud-value" id="hud-wave">1</span>
+        <div class="wave-progress"><div class="wave-progress-bar" id="wave-progress-bar"></div></div>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">LVL</span>
+        <span class="hud-value" id="hud-level">1</span>
+        <div class="exp-progress"><div class="exp-progress-bar" id="exp-progress-bar"></div></div>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">SCORE</span>
+        <span class="hud-value" id="hud-score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">COMBO</span>
+        <span class="hud-value" id="hud-combo">x1</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">WPM</span>
+        <span class="hud-value" id="hud-wpm">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">ACC</span>
+        <span class="hud-value" id="hud-accuracy">100%</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">WEAPON</span>
+        <span class="hud-value hud-weapon-name" id="hud-weapon">BOLT</span>
+        <span class="hud-mastery" id="hud-mastery"></span>
+      </div>
+    </div>
+    <div class="hud-upgrades" id="hud-upgrades"></div>
+    <div class="boss-health-container hidden" id="boss-health-container">
+      <span class="boss-health-label">BOSS</span>
+      <div class="boss-health-bar"><div class="boss-health-fill" id="boss-health-fill"></div></div>
+      <span class="boss-health-text" id="boss-health-text">0 / 0</span>
+    </div>
+    <div class="hud-bottom">
+      <div class="hud-effects" id="hud-effects"></div>
+      <div class="health-bar-container">
+        <div class="health-bar" id="health-bar"></div>
+        <span class="health-text" id="health-text">100 / 100</span>
+      </div>
+      <div class="typing-display" id="typing-display"></div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
