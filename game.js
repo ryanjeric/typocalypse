@@ -392,6 +392,42 @@
         s.clickTargetCritMult = (s.clickTargetCritMult ?? 2) + 0.5;
       }),
     },
+    orbitingOrb: {
+      id: 'orbitingOrb',
+      icon: '\u{1F4AB}',
+      color: '#a78bfa',
+      words: ['orbit', 'orb', 'sphere', 'rotate', 'cycle'],
+      label: 'ORBITING ORB',
+      desc: 'An orb orbits you, damaging enemies on contact',
+      apply: makeApply((s) => { s.orbCount = Math.min(2, (s.orbCount || 0) + 1); }),
+    },
+    spectre: {
+      id: 'spectre',
+      icon: '\u{1F47B}',
+      color: '#c084fc',
+      words: ['spectre', 'phantom', 'ghost', 'spirit', 'wraith'],
+      label: 'SPECTRE',
+      desc: 'Words with a/e/o spawn melee drones (count = letters matched)',
+      apply: makeApply((s) => { s.spectreEnabled = true; }),
+    },
+    minefield: {
+      id: 'minefield',
+      icon: '\u{1F4A3}',
+      color: '#f59e0b',
+      words: ['mine', 'field', 'trap', 'explosive', 'detonate'],
+      label: 'MINEFIELD',
+      desc: 'Words starting with f/g/h/i spawn mines that explode on contact',
+      apply: makeApply((s) => { s.minefieldEnabled = true; }),
+    },
+    meteor: {
+      id: 'meteor',
+      icon: '\u2604',
+      color: '#ef4444',
+      words: ['meteor', 'strike', 'orbital', 'bombard', 'impact'],
+      label: 'METEOR',
+      desc: 'Periodically spawns markers; type the word to trigger orbital strike',
+      apply: makeApply((s) => { s.meteorEnabled = true; s.meteorTimer = 0; }),
+    },
   };
 
   const AUGMENTATION_KEYS = Object.keys(AUGMENTATION_TYPES);
@@ -660,7 +696,7 @@
     bossTank:   { color: '#e63946', hp: 14, speed: 0.2, size: 36, sides: 8, scoreValue: 250 },
     bossSplitter: { color: '#ff6b6b', hp: 8, speed: 0.35, size: 32, sides: 7, scoreValue: 200 },
     bossShielded: { color: '#ff2d55', hp: 8, speed: 0.35, size: 32, sides: 7, scoreValue: 200 },
-    splitter:   { color: '#f472b6', hp: 2, speed: 1.2, size: 16, sides: 5, scoreValue: 20 },
+    splitter:   { color: '#f472b6', hp: 1, speed: 1.2, size: 16, sides: 5, scoreValue: 20 },
     fragment:   { color: '#f9a8d4', hp: 1, speed: 1.6, size: 8,  sides: 3, scoreValue: 8 },
     shielder:   { color: '#38bdf8', hp: 3, speed: 0.8, size: 18, sides: 6, scoreValue: 35 },
     speeder:    { color: '#c084fc', hp: 1, speed: 3.0, size: 10, sides: 3, scoreValue: 18 },
@@ -755,7 +791,7 @@
     waveEnemiesLeft: 0, waveEnemiesTotal: 0, waveActive: false,
     spawnTimer: 0, spawnInterval: 1.5,
     exp: 0, level: 1, expToNextLevel: 5,
-    currentInput: '', targetEnemy: null, targetDrop: null, targetAugDrop: null, targetChosenViaClick: false,
+    currentInput: '', targetEnemy: null, targetDrop: null, targetAugDrop: null, targetMeteorMarker: null, targetChosenViaClick: false,
     clickTargetCritChance: 0.1, clickTargetCritMult: 2,
     upgrades: [], augmentations: [],
     weaponBranchProgress: {},
@@ -770,7 +806,8 @@
   let enemies = [], projectiles = [], particles = [], floatingTexts = [];
   let shockwaveRings = [], lightningArcs = [], orbs = [], playerTrail = [];
   let powerDrops = [], augmentationDrops = [];
-  let beams = [], poisonPools = [];
+  let beams = [], beamProjectiles = [], poisonPools = [];
+  let orbitingOrbs = [], spectreDrones = [], mines = [], meteorMarkers = [];
   let gridPulse = 0;
 
   const player = { x: 0, y: 0, radius: 16, angle: 0 };
@@ -793,6 +830,7 @@
     upgradeCards: document.getElementById('upgrade-cards'),
     upgradeTitle: document.getElementById('upgrade-title'),
     upgradeSubtitle: document.getElementById('upgrade-subtitle'),
+    upgradeInputHint: document.getElementById('upgrade-input-hint'),
     gameOverStats: document.getElementById('game-over-stats'),
     startBtn: document.getElementById('start-btn'),
     restartBtn: document.getElementById('restart-btn'),
@@ -1045,7 +1083,7 @@
       waveEnemiesLeft: 0, waveEnemiesTotal: 0, waveActive: false,
       spawnTimer: 0, spawnInterval: 1.5,
       exp: 0, level: 1, expToNextLevel: 5,
-      currentInput: '', targetEnemy: null, targetDrop: null, targetAugDrop: null, targetChosenViaClick: false,
+      currentInput: '', targetEnemy: null, targetDrop: null, targetAugDrop: null, targetMeteorMarker: null, targetChosenViaClick: false,
       upgrades: [], augmentations: [],
       weaponBranchProgress: initWeaponBranchProgress(currentWeapon),
       subWeapon: null,
@@ -1070,7 +1108,8 @@
     }
     enemies = []; projectiles = []; particles = []; floatingTexts = [];
     shockwaveRings = []; lightningArcs = []; orbs = []; playerTrail = [];
-    powerDrops = []; augmentationDrops = []; beams = []; poisonPools = [];
+    powerDrops = []; augmentationDrops = []; beams = []; beamProjectiles = []; poisonPools = [];
+    orbitingOrbs = []; spectreDrones = []; mines = []; meteorMarkers = [];
     player.x = W / 2;
     player.y = H / 2;
     if (dom.hudUpgrades) dom.hudUpgrades.innerHTML = '';
@@ -1118,6 +1157,11 @@
         state.apiWordBuffer.push(...words.filter((w) => typeof w === 'string' && w.length >= 3));
       }
     }).catch(() => {});
+  }
+
+  function getWordForUpgradeChoice(excludeFirstLetters) {
+    const pool = WORDS_EASY.filter((w) => w.length >= 3 && !excludeFirstLetters.includes(w[0]));
+    return pool.length ? pool[Math.floor(getRandom() * pool.length)] : 'pick';
   }
 
   function getWord(forcePool, excludeFirstLetters) {
@@ -1168,7 +1212,8 @@
     if (w >= 5 && roll < 0.46) return 'tank';
     if (w >= 6 && roll < 0.54) return 'stealth';
     if (w >= 5 && roll < 0.62) return 'berserker';
-    if (w >= 3 && roll < 0.70) return 'splitter';
+    if (w >= 5 && roll < 0.60) return 'splitter';
+    if (w >= 4 && roll < 0.25) return 'splitter';
     if (w >= 3 && roll < 0.85) return 'scout';
     if (w >= 4 && roll < 0.93) return 'swarm';
     return 'drone';
@@ -1482,14 +1527,21 @@
     dom.upgradeScreen.classList.remove('hidden');
     dom.upgradeTitle.textContent = 'LEVEL UP';
     dom.upgradeSubtitle.textContent = `Level ${state.level} \u2014 choose a weapon upgrade`;
-    const choices = getNextBranchUpgrades();
+    const choices = getNextBranchUpgrades().slice(0, 3);
     state.upgradePhase = 'weapon';
-    window._upgradeChoices = choices.slice(0, 3);
+    const usedFirst = [];
+    choices.forEach((c) => {
+      c.word = getWordForUpgradeChoice(usedFirst);
+      usedFirst.push(c.word[0]);
+    });
+    window._upgradeChoices = choices;
+    state.upgradeInput = '';
+    if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = 'Type the word to select';
     dom.upgradeCards.innerHTML = '';
-    choices.slice(0, 3).forEach(({ upg, branch }, i) => {
+    choices.forEach(({ upg, branch, word }) => {
       const card = document.createElement('div');
       card.className = 'upgrade-card';
-      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-word">Type: ${word}</div>`;
       card.addEventListener('click', () => selectWeaponUpgrade(upg, branch));
       dom.upgradeCards.appendChild(card);
     });
@@ -1548,19 +1600,29 @@
     dom.upgradeScreen.classList.remove('hidden');
     dom.upgradeTitle.textContent = 'SUB-WEAPON UNLOCK';
     dom.upgradeSubtitle.textContent = 'Main weapon maxed \u2014 choose a secondary weapon';
-    window._upgradeChoices = options.slice(0, 3);
+    const opts = options.slice(0, 3);
+    const usedFirst = [];
+    opts.forEach((w) => {
+      w.word = getWordForUpgradeChoice(usedFirst);
+      usedFirst.push(w.word[0]);
+    });
+    usedFirst.push('s');
+    const skipWord = getWordForUpgradeChoice(usedFirst) || 'skip';
+    window._upgradeChoices = [...opts, { id: 'skip', word: skipWord, isSkip: true }];
+    state.upgradeInput = '';
+    if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = 'Type the word to select';
     dom.upgradeCards.innerHTML = '';
-    options.slice(0, 3).forEach((w, i) => {
+    opts.forEach((w) => {
       const card = document.createElement('div');
       card.className = 'upgrade-card';
       card.style.borderColor = w.color + '66';
-      card.innerHTML = `<div class="upgrade-card-icon">${w.icon}</div><div class="upgrade-card-name" style="color:${w.color}">${w.name}</div><div class="upgrade-card-desc">${w.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.innerHTML = `<div class="upgrade-card-icon">${w.icon}</div><div class="upgrade-card-name" style="color:${w.color}">${w.name}</div><div class="upgrade-card-desc">${w.desc}</div><div class="upgrade-card-word">Type: ${w.word}</div>`;
       card.addEventListener('click', () => selectSubWeapon(w.id));
       dom.upgradeCards.appendChild(card);
     });
     const skipCard = document.createElement('div');
     skipCard.className = 'upgrade-card upgrade-card--skip';
-    skipCard.innerHTML = '<div class="upgrade-card-icon">\u2715</div><div class="upgrade-card-name">SKIP</div><div class="upgrade-card-desc">Continue without sub-weapon</div>';
+    skipCard.innerHTML = `<div class="upgrade-card-icon">\u2715</div><div class="upgrade-card-name">SKIP</div><div class="upgrade-card-desc">Continue without sub-weapon</div><div class="upgrade-card-word">Type: ${skipWord}</div>`;
     skipCard.addEventListener('click', () => {
       dom.upgradeScreen.classList.add('hidden');
       state.screen = 'playing';
@@ -1585,13 +1647,20 @@
     dom.upgradeScreen.classList.remove('hidden');
     dom.upgradeTitle.textContent = 'LEVEL UP';
     dom.upgradeSubtitle.textContent = `Level ${state.level} \u2014 choose a sub-weapon upgrade`;
-    const choices = getNextSubWeaponBranchUpgrades();
-    window._upgradeChoices = choices.slice(0, 3);
+    const choices = getNextSubWeaponBranchUpgrades().slice(0, 3);
+    const usedFirst = [];
+    choices.forEach((c) => {
+      c.word = getWordForUpgradeChoice(usedFirst);
+      usedFirst.push(c.word[0]);
+    });
+    window._upgradeChoices = choices;
+    state.upgradeInput = '';
+    if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = 'Type the word to select';
     dom.upgradeCards.innerHTML = '';
-    choices.slice(0, 3).forEach(({ upg, branch }, i) => {
+    choices.forEach(({ upg, branch, word }) => {
       const card = document.createElement('div');
       card.className = 'upgrade-card';
-      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-word">Type: ${word}</div>`;
       card.addEventListener('click', () => selectSubWeaponUpgrade(upg, branch));
       dom.upgradeCards.appendChild(card);
     });
@@ -1621,16 +1690,22 @@
       return true;
     });
     const available = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
+    const usedFirst = [];
+    available.forEach((upg) => {
+      upg.word = getWordForUpgradeChoice(usedFirst);
+      usedFirst.push(upg.word[0]);
+    });
     window._upgradeChoices = available;
+    state.upgradeInput = '';
+    if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = 'Type the word to select';
     dom.upgradeCards.innerHTML = '';
     available.forEach((upg, i) => {
       const card = document.createElement('div');
       card.className = 'upgrade-card' + (upg.curse ? ' upgrade-card--curse' : '');
-      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-key">[${i + 1}]</div>`;
+      card.innerHTML = `<div class="upgrade-card-icon">${upg.icon}</div><div class="upgrade-card-name">${upg.name}</div><div class="upgrade-card-desc">${upg.desc}</div><div class="upgrade-card-word">Type: ${upg.word}</div>`;
       card.addEventListener('click', () => selectWaveClearChoice(upg));
       dom.upgradeCards.appendChild(card);
     });
-    window._upgradeChoices = available;
   }
 
   function selectWaveClearChoice(upg) {
@@ -1685,20 +1760,30 @@
 
   function renderWeaponCards() {
     dom.weaponCards.innerHTML = '';
+    const unlocked = WEAPON_KEYS.filter((k) => isWeaponUnlocked(k));
+    const usedFirst = [];
+    const weaponWords = {};
+    unlocked.forEach((key) => {
+      weaponWords[key] = getWordForUpgradeChoice(usedFirst);
+      usedFirst.push(weaponWords[key][0]);
+    });
+    window._weaponChoices = unlocked.map((key) => ({ key, word: weaponWords[key] }));
+    state.upgradeInput = '';
     WEAPON_KEYS.forEach((key) => {
       const w = WEAPONS[key];
-      const unlocked = isWeaponUnlocked(key);
+      const isUnlocked = isWeaponUnlocked(key);
       const card = document.createElement('div');
-      card.className = 'weapon-card' + (unlocked ? '' : ' weapon-card--locked');
+      card.className = 'weapon-card' + (isUnlocked ? '' : ' weapon-card--locked');
       card.style.borderColor = w.color + '33';
-      const unlockLabel = unlocked ? '' : `<div class="weapon-card-unlock">Unlock: ${getWeaponUnlockLabel(key)}</div>`;
+      const unlockLabel = isUnlocked ? '' : `<div class="weapon-card-unlock">Unlock: ${getWeaponUnlockLabel(key)}</div>`;
+      const wordLabel = isUnlocked ? `<div class="weapon-card-word">Type: ${weaponWords[key]}</div>` : '';
       card.innerHTML = `
         <div class="weapon-card-icon">${w.icon}</div>
         <div class="weapon-card-name" style="color:${w.color}">${w.name}</div>
         <div class="weapon-card-desc">${w.desc}</div>
         <div class="weapon-card-mechanic" style="border:1px solid ${w.color}55;color:${w.color}">${w.mechanic}</div>
-        ${unlockLabel}`;
-      if (unlocked) {
+        ${unlockLabel}${wordLabel}`;
+      if (isUnlocked) {
         card.addEventListener('mouseenter', () => {
           card.style.borderColor = w.color;
           card.style.boxShadow = `0 0 35px ${w.color}44`;
@@ -1933,7 +2018,12 @@
 
   function fireProjectile(enemy, color) {
     const a = Math.atan2(enemy.y - player.y, enemy.x - player.x), spd = 12 * state.projectileSpeed * state.comboSpeedBoost;
-    projectiles.push({ x: player.x, y: player.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, target: enemy, life: 3, color: color || enemy.color, type: 'bolt' });
+    const precomputed = computeDamageMult(enemy);
+    projectiles.push({
+      x: player.x, y: player.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+      target: enemy, life: 3, color: color || enemy.color, type: 'bolt',
+      damage: 1, source: 'weapon', precomputed,
+    });
   }
 
   // Bolt Caster — standard projectile
@@ -1942,9 +2032,15 @@
     audio.fireBolt();
   }
 
-  // Arc Beam — sustained beam that chains to nearby enemies
+  // Arc Beam — traveling beam that chains to nearby enemies
   function fireArcBeam(enemy) {
-    beams.push({ x1: player.x, y1: player.y, x2: enemy.x, y2: enemy.y, life: 0.5, color: '#a78bfa', target: enemy });
+    const beamSpeed = 6;
+    const precomputed = computeDamageMult(enemy);
+    beamProjectiles.push({
+      x1: player.x, y1: player.y, x2: enemy.x, y2: enemy.y,
+      progress: 0, maxProgress: 1, speed: beamSpeed,
+      target: enemy, color: '#a78bfa', damage: 1, source: 'weapon', precomputed,
+    });
 
     const chainRange = 200 * (state.arcChainRange || 1);
     const maxBounces = 2 + (state.arcChainBounces || 0);
@@ -1955,15 +2051,15 @@
 
     let prev = enemy;
     chainTargets.forEach((ce) => {
-      beams.push({ x1: prev.x, y1: prev.y, x2: ce.x, y2: ce.y, life: 0.4, color: '#c4b5fd', target: ce, chain: true });
       const isCrit = Math.random() < state.critChance;
       const chainBase = 0.5 + (state.arcChainDamageMult || 0);
-      let mult = state.damageMultiplier * chainBase * (isCrit ? 2 : 1);
-      if (state.doubleTimer > 0) mult *= 2;
-      ce.hp -= mult;
-      spawnParticles(ce.x, ce.y, '#a78bfa', 5, 2);
-      if (isCrit) { spawnFloatingText(ce.x, ce.y - 30, 'CRIT!', '#fbbf24'); state.critFlashTimer = 0.15; }
-      if (ce.hp <= 0) killEnemy(ce, 'weapon');
+      const mult = state.damageMultiplier * chainBase * (isCrit ? 2 : 1) * (state.doubleTimer > 0 ? 2 : 1);
+      beamProjectiles.push({
+        x1: prev.x, y1: prev.y, x2: ce.x, y2: ce.y,
+        progress: 0, maxProgress: 1, speed: beamSpeed * 1.2,
+        target: ce, color: '#c4b5fd', chain: true,
+        damage: 1, source: 'weapon', precomputed: { isCrit, mult },
+      });
       prev = ce;
     });
     audio.fireArc();
@@ -2001,15 +2097,11 @@
     audio.fireVenom();
   }
 
-  // Pulse Nova — expanding damage ring, no projectile
+  // Pulse Nova — expanding damage ring, damage when ring reaches each enemy
   function firePulseNova(enemy) {
     const maxRadius = 160 * (state.pulseRadius || 1);
     const pulseSpeed = 350 * (state.pulseSpeedMult || 1);
-    shockwaveRings.push({
-      x: player.x, y: player.y, radius: 20, maxRadius,
-      life: 1, color: '#f472b6', speed: pulseSpeed,
-    });
-
+    const damageTargets = [];
     enemies.forEach((e) => {
       if (e.hp <= 0) return;
       const d = Math.hypot(e.x - player.x, e.y - player.y);
@@ -2018,11 +2110,13 @@
         const isCrit = Math.random() < state.critChance;
         let mult = state.damageMultiplier * (state.pulseDamageMult || 1) * falloff * (isCrit ? 2 : 1);
         if (state.doubleTimer > 0) mult *= 2;
-        e.hp -= mult;
-        spawnParticles(e.x, e.y, '#f472b6', 3, 2);
-        if (isCrit) { spawnFloatingText(e.x, e.y - 30, 'CRIT!', '#fbbf24'); state.critFlashTimer = 0.15; }
-        if (e.hp <= 0) killEnemy(e, 'weapon');
+        damageTargets.push({ enemy: e, dist: d, precomputed: { isCrit, mult } });
       }
+    });
+    shockwaveRings.push({
+      x: player.x, y: player.y, radius: 20, maxRadius,
+      life: 1, color: '#f472b6', speed: pulseSpeed,
+      damageTargets, hitEnemies: new Set(),
     });
 
     state.shakeAmount = 6;
@@ -2043,7 +2137,23 @@
 
   function fireDroneProjectile(dx, dy, enemy) {
     const a = Math.atan2(enemy.y - dy, enemy.x - dx);
-    projectiles.push({ x: dx, y: dy, vx: Math.cos(a) * 14, vy: Math.sin(a) * 14, target: enemy, life: 3, color: '#f472b6' });
+    const isCrit = Math.random() < state.critChance;
+    const mult = state.damageMultiplier * (isCrit ? 2 : 1) * (state.doubleTimer > 0 ? 2 : 1);
+    projectiles.push({
+      x: dx, y: dy, vx: Math.cos(a) * 14, vy: Math.sin(a) * 14,
+      target: enemy, life: 3, color: '#f472b6',
+      damage: 1, source: 'weapon', precomputed: { isCrit, mult },
+    });
+  }
+
+  function triggerMeteorStrike(marker) {
+    const fallSpeed = 180;
+    projectiles.push({
+      x: marker.x, y: marker.y - 150, vx: 0, vy: fallSpeed,
+      type: 'meteor', life: 5, color: '#f59e0b',
+      targetX: marker.x, targetY: marker.y, aoeRadius: 80,
+    });
+    state.shakeAmount = 4;
   }
 
   // --- Damage & kill ---
@@ -2070,24 +2180,41 @@
     });
   }
 
-  function damageEnemy(enemy, damage, source) {
-    const isCrit = Math.random() < (state.critChance + state.comboCritBoost);
-    let mult = state.damageMultiplier * (isCrit ? 2 : 1);
-    if (state.doubleTimer > 0) mult *= 2;
-    const clickBonus = source === 'weapon' && state.targetEnemy === enemy && state.targetChosenViaClick &&
-      Math.random() < (state.clickTargetCritChance ?? 0.1);
-    if (clickBonus) {
-      mult *= (state.clickTargetCritMult ?? 2);
-      spawnFloatingText(enemy.x, enemy.y - 35, 'TARGET LOCK!', '#38bdf8');
-      state.critFlashTimer = 0.12;
+  function damageEnemy(enemy, damage, source, precomputed) {
+    let isCrit, mult;
+    if (precomputed) {
+      isCrit = precomputed.isCrit;
+      mult = precomputed.mult;
+    } else {
+      isCrit = Math.random() < (state.critChance + state.comboCritBoost);
+      mult = state.damageMultiplier * (isCrit ? 2 : 1);
+      if (state.doubleTimer > 0) mult *= 2;
+      const clickBonus = source === 'weapon' && state.targetEnemy === enemy && state.targetChosenViaClick &&
+        Math.random() < (state.clickTargetCritChance ?? 0.1);
+      if (clickBonus) {
+        mult *= (state.clickTargetCritMult ?? 2);
+        spawnFloatingText(enemy.x, enemy.y - 35, 'TARGET LOCK!', '#38bdf8');
+        state.critFlashTimer = 0.12;
+      }
     }
     enemy.hp -= damage * mult;
     if (isCrit) { spawnFloatingText(enemy.x, enemy.y - 30, 'CRIT!', '#fbbf24'); state.critFlashTimer = 0.15; }
+    if (precomputed?.showTargetLock) { spawnFloatingText(enemy.x, enemy.y - 35, 'TARGET LOCK!', '#38bdf8'); state.critFlashTimer = 0.12; }
     if (state.cryoChance && Math.random() < state.cryoChance) {
       enemy.cryoUntil = performance.now() + 2000;
       spawnParticles(enemy.x, enemy.y, '#67e8f9', 5, 1);
     }
     if (enemy.hp <= 0) killEnemy(enemy, source);
+  }
+
+  function computeDamageMult(enemy) {
+    const isCrit = Math.random() < (state.critChance + state.comboCritBoost);
+    let mult = state.damageMultiplier * (isCrit ? 2 : 1);
+    if (state.doubleTimer > 0) mult *= 2;
+    const clickBonus = state.targetEnemy === enemy && state.targetChosenViaClick &&
+      Math.random() < (state.clickTargetCritChance ?? 0.1);
+    if (clickBonus) mult *= (state.clickTargetCritMult ?? 2);
+    return { isCrit, mult, showTargetLock: clickBonus };
   }
 
   function checkStreakMilestone() {
@@ -2211,16 +2338,17 @@
         });
       }
     } else if (enemy.type === 'splitter') {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 1; i++) {
         const a = Math.random() * Math.PI * 2;
         const fx = enemy.x + Math.cos(a) * 30;
         const fy = enemy.y + Math.sin(a) * 30;
         const fDef = ENEMY_TYPES.fragment;
         const fw = getWord(WORDS_EASY);
+        const fragSpeedMult = state.wave <= 4 ? 0.8 : (1 + state.wave * 0.04);
         enemies.push({
           x: fx, y: fy, type: 'fragment', word: fw, typedIndex: 0,
           hp: fDef.hp, maxHp: fDef.hp,
-          speed: fDef.speed * (1 + state.wave * 0.04),
+          speed: fDef.speed * fragSpeedMult,
           size: fDef.size, sides: fDef.sides, color: fDef.color,
           scoreValue: fDef.scoreValue, angle: Math.random() * Math.PI * 2,
           rotSpeed: (Math.random() - 0.5) * 3, pulsePhase: Math.random() * Math.PI * 2,
@@ -2280,7 +2408,12 @@
       const nearby = enemies.filter((e) => e !== enemy && e.hp > 0).sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y) - Math.hypot(b.x - enemy.x, b.y - enemy.y)).slice(0, state.extraProjectiles);
       nearby.forEach((e) => {
         const a = Math.atan2(e.y - enemy.y, e.x - enemy.x), spd = 10 * state.projectileSpeed;
-        projectiles.push({ x: enemy.x, y: enemy.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, target: e, life: 2, color: '#fbbf24' });
+        const precomputed = computeDamageMult(e);
+        projectiles.push({
+          x: enemy.x, y: enemy.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+          target: e, life: 2, color: '#fbbf24', type: 'bolt',
+          damage: 1, source: 'weapon', precomputed,
+        });
       });
     }
 
@@ -2311,7 +2444,30 @@
     const tgt = cands[0], t = performance.now() / 1000, da = t * 2;
     fireDroneProjectile(player.x + Math.cos(da) * 40, player.y + Math.sin(da) * 40, tgt);
     audio.droneShot();
-    damageEnemy(tgt, 1);
+  }
+
+  function handleWordCompletionEffects(completedWord) {
+    if (state.spectreEnabled && completedWord) {
+      const count = (completedWord.match(/[aeo]/gi) || []).length;
+      for (let i = 0; i < count; i++) {
+        const nearest = enemies.filter((e) => e.hp > 0).sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0];
+        if (nearest) {
+          spectreDrones.push({
+            x: player.x, y: player.y, target: nearest, life: 3, speed: 18,
+            color: '#c084fc', cooldown: 0,
+          });
+        }
+      }
+    }
+    if (state.minefieldEnabled && completedWord && ['f', 'g', 'h', 'i'].includes(completedWord[0].toLowerCase())) {
+      const nearest = enemies.filter((e) => e.hp > 0).sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y))[0];
+      const a = nearest ? Math.atan2(nearest.y - player.y, nearest.x - player.x) : Math.random() * Math.PI * 2;
+      const spd = 4;
+      mines.push({
+        x: player.x, y: player.y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+        life: 5, radius: 40, color: '#f59e0b',
+      });
+    }
   }
 
   // --- Input ---
@@ -2319,20 +2475,49 @@
   function handleKeyDown(e) {
     if (state.screen === 'upgrade') {
       e.preventDefault();
-      const idx = parseInt(e.key) - 1;
-      if (idx >= 0 && idx < 3 && window._upgradeChoices?.[idx]) {
-        if (state.upgradePhase === 'weapon') {
-          const c = window._upgradeChoices[idx];
-          selectWeaponUpgrade(c.upg, c.branch);
-        } else if (state.upgradePhase === 'subWeaponSelect') {
-          const w = window._upgradeChoices[idx];
-          selectSubWeapon(w.id);
-        } else if (state.upgradePhase === 'subWeaponUpgrade') {
-          const c = window._upgradeChoices[idx];
-          selectSubWeaponUpgrade(c.upg, c.branch);
-        } else {
-          selectWaveClearChoice(window._upgradeChoices[idx]);
+      const key = e.key.toLowerCase();
+      if (key === 'backspace') {
+        state.upgradeInput = (state.upgradeInput || '').slice(0, -1);
+        if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = state.upgradeInput ? `Typing: ${state.upgradeInput}` : 'Type the word to select';
+        return;
+      }
+      if (key.length === 1 && /[a-z]/.test(key)) {
+        state.upgradeInput = (state.upgradeInput || '') + key;
+        if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = `Typing: ${state.upgradeInput}`;
+        const choices = window._upgradeChoices || [];
+        const match = choices.find((c) => c.word === state.upgradeInput);
+        if (match) {
+          state.upgradeInput = '';
+          if (dom.upgradeInputHint) dom.upgradeInputHint.textContent = 'Type the word to select';
+          if (match.isSkip) {
+            dom.upgradeScreen.classList.add('hidden');
+            state.screen = 'playing';
+            checkWaveClearAfterLevelUp();
+          } else if (state.upgradePhase === 'weapon') {
+            selectWeaponUpgrade(match.upg, match.branch);
+          } else if (state.upgradePhase === 'subWeaponSelect') {
+            selectSubWeapon(match.id);
+          } else if (state.upgradePhase === 'subWeaponUpgrade') {
+            selectSubWeaponUpgrade(match.upg, match.branch);
+          } else {
+            selectWaveClearChoice(match);
+          }
         }
+      }
+      return;
+    }
+    if (state.screen === 'weaponSelect') {
+      e.preventDefault();
+      const key = e.key.toLowerCase();
+      if (key === 'backspace') {
+        state.upgradeInput = (state.upgradeInput || '').slice(0, -1);
+        return;
+      }
+      if (key.length === 1 && /[a-z]/.test(key)) {
+        state.upgradeInput = (state.upgradeInput || '') + key;
+        const choices = window._weaponChoices || [];
+        const match = choices.find((c) => c.word === state.upgradeInput);
+        if (match) selectWeapon(match.key);
       }
       return;
     }
@@ -2347,8 +2532,9 @@
     const key = e.key.toLowerCase();
 
     if (key === 'escape') {
-      if (state.currentInput.length > 0 || state.targetEnemy || state.targetDrop || state.targetAugDrop) {
+      if (state.currentInput.length > 0 || state.targetEnemy || state.targetDrop || state.targetAugDrop || state.targetMeteorMarker) {
         state.targetEnemy = null; state.targetDrop = null; state.targetAugDrop = null; state.targetChosenViaClick = false; state.currentInput = '';
+        if (state.targetMeteorMarker) { state.targetMeteorMarker.targeted = false; state.targetMeteorMarker.typedIndex = 0; state.targetMeteorMarker = null; }
         enemies.forEach((en) => (en.targeted = false));
         powerDrops.forEach((d) => { d.targeted = false; d.typedIndex = 0; });
         augmentationDrops.forEach((d) => { d.targeted = false; d.typedIndex = 0; });
@@ -2363,6 +2549,7 @@
         if (state.targetEnemy) state.targetEnemy.typedIndex = state.currentInput.length;
         if (state.targetDrop) state.targetDrop.typedIndex = state.currentInput.length;
         if (state.targetAugDrop) state.targetAugDrop.typedIndex = state.currentInput.length;
+        if (state.targetMeteorMarker) state.targetMeteorMarker.typedIndex = state.currentInput.length;
       }
       return;
     }
@@ -2378,6 +2565,7 @@
         state.targetEnemy.typedIndex = 0;
         state.targetDrop = null;
         state.targetAugDrop = null;
+        state.targetMeteorMarker = null;
         state.currentInput = '';
         state.targetChosenViaClick = true;
       }
@@ -2389,7 +2577,23 @@
     audio.typeKey();
 
     // Helper: try to acquire a new target starting with `key`
-    function tryAcquireNewTarget(key, excludeEnemy, excludeDrop, excludeAugDrop) {
+    function tryAcquireNewTarget(key, excludeEnemy, excludeDrop, excludeAugDrop, excludeMeteor) {
+      const meteorMatches = meteorMarkers.filter((mm) => mm.word[0] === key && mm !== excludeMeteor);
+      if (meteorMatches.length > 0) {
+        meteorMatches.sort((a, b) => Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y));
+        clearCurrentTarget();
+        state.targetMeteorMarker = meteorMatches[0];
+        state.targetMeteorMarker.targeted = true;
+        state.currentInput = key;
+        state.targetMeteorMarker.typedIndex = 1;
+        if (state.targetMeteorMarker.word.length === 1) {
+          triggerMeteorStrike(state.targetMeteorMarker);
+          meteorMarkers = meteorMarkers.filter((mm) => mm !== state.targetMeteorMarker);
+          state.targetMeteorMarker = null;
+          state.currentInput = '';
+        }
+        return true;
+      }
       const powerMatches = powerDrops.filter((d) => d.word[0] === key && d !== excludeDrop);
       const augMatches = augmentationDrops.filter((d) => d.word[0] === key && d !== excludeAugDrop);
       const allDrops = powerMatches.map((d) => ({ d, isAug: false })).concat(augMatches.map((d) => ({ d, isAug: true })));
@@ -2440,8 +2644,9 @@
         } else {
           state.targetEnemy.typedIndex = 1;
           if (state.targetEnemy.word.length === 1) {
+            const completedWord = state.targetEnemy.word;
             fireWeapon(state.targetEnemy);
-            damageEnemy(state.targetEnemy, 1, 'weapon');
+            handleWordCompletionEffects(completedWord);
             state.currentInput = '';
           }
         }
@@ -2458,8 +2663,35 @@
       }
       if (state.targetDrop) { state.targetDrop.targeted = false; state.targetDrop.typedIndex = 0; state.targetDrop = null; }
       if (state.targetAugDrop) { state.targetAugDrop.targeted = false; state.targetAugDrop.typedIndex = 0; state.targetAugDrop = null; }
+      if (state.targetMeteorMarker) { state.targetMeteorMarker.targeted = false; state.targetMeteorMarker.typedIndex = 0; state.targetMeteorMarker = null; }
       state.targetChosenViaClick = false;
       state.currentInput = '';
+    }
+
+    // Currently targeting a meteor marker
+    if (state.targetMeteorMarker) {
+      const mm = state.targetMeteorMarker;
+      const expected = mm.word[state.currentInput.length];
+      if (key === expected) {
+        state.keysCorrect++;
+        state.currentInput += key;
+        mm.typedIndex = state.currentInput.length;
+        if (state.currentInput.length === mm.word.length) {
+          triggerMeteorStrike(mm);
+          meteorMarkers = meteorMarkers.filter((m) => m !== mm);
+          state.targetMeteorMarker = null;
+          state.currentInput = '';
+        }
+      } else if (!tryAcquireNewTarget(key, null, null, null, mm)) {
+        state.keysMissed++;
+        state.combo = 0; state.lastStreakThreshold = 0;
+        state.currentInput = '';
+        mm.typedIndex = 0;
+        state.targetMeteorMarker = null;
+        audio.invalid();
+        spawnParticles(player.x, player.y - 20, '#ef4444', 3, 1);
+      }
+      return;
     }
 
     // Currently targeting an augmentation drop
@@ -2474,7 +2706,7 @@
           activateAugmentationDrop(drop);
           augmentationDrops = augmentationDrops.filter((d) => d !== drop);
         }
-      } else if (!tryAcquireNewTarget(key, null, null, state.targetAugDrop)) {
+      } else if (!tryAcquireNewTarget(key, null, null, state.targetAugDrop, null)) {
         state.keysMissed++;
         state.combo = 0; state.lastStreakThreshold = 0;
         state.currentInput = '';
@@ -2497,7 +2729,7 @@
           activatePowerDrop(drop);
           powerDrops = powerDrops.filter((d) => d !== drop);
         }
-      } else if (!tryAcquireNewTarget(key, null, state.targetDrop, null)) {
+      } else if (!tryAcquireNewTarget(key, null, state.targetDrop, null, null)) {
         state.keysMissed++;
         state.combo = 0; state.lastStreakThreshold = 0;
         state.currentInput = '';
@@ -2525,7 +2757,7 @@
             spawnFloatingText(te.x, te.y - 30, 'SHIELD BROKEN!', '#38bdf8');
             audio.shieldBreak();
           }
-        } else if (!tryAcquireNewTarget(key, te, null, null)) {
+        } else if (!tryAcquireNewTarget(key, te, null, null, null)) {
           state.keysMissed++;
           state.combo = 0; state.lastStreakThreshold = 0;
           state.currentInput = '';
@@ -2541,15 +2773,14 @@
           state.currentInput += key;
           te.typedIndex = state.currentInput.length;
           if (state.currentInput.length === te.word.length) {
+            const completedWord = te.word;
             fireWeapon(te);
-            damageEnemy(te, 1, 'weapon');
+            handleWordCompletionEffects(completedWord);
             state.currentInput = '';
-            if (te.hp > 0) {
-              te.word = getWord();
-              te.typedIndex = 0;
-            }
+            te.word = getWord();
+            te.typedIndex = 0;
           }
-        } else if (!tryAcquireNewTarget(key, te, null, null)) {
+        } else if (!tryAcquireNewTarget(key, te, null, null, null)) {
           state.keysMissed++;
           state.combo = 0; state.lastStreakThreshold = 0;
           state.currentInput = '';
@@ -2563,7 +2794,7 @@
     }
 
     // No target -- find one among drops and enemies
-    if (!tryAcquireNewTarget(key, null, null, null)) {
+    if (!tryAcquireNewTarget(key, null, null, null, null)) {
       state.combo = 0; state.lastStreakThreshold = 0;
     }
   }
@@ -2591,6 +2822,7 @@
       state.targetEnemy.typedIndex = 0;
       state.targetDrop = null;
       state.targetAugDrop = null;
+      state.targetMeteorMarker = null;
       state.currentInput = '';
       state.targetChosenViaClick = true;
     }
@@ -3079,6 +3311,12 @@
       ctx.closePath();
       ctx.fillStyle = p.color + 'cc'; ctx.strokeStyle = p.color; ctx.lineWidth = 1.5;
       ctx.shadowColor = p.color; ctx.shadowBlur = 15; ctx.fill(); ctx.stroke();
+    } else if (p.type === 'meteor') {
+      const size = 12 + Math.sin(t * 8) * 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 25; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, size * 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = p.color + '44'; ctx.fill();
     } else {
       ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
       ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 15; ctx.fill();
@@ -3092,30 +3330,77 @@
   function drawShockwaveRing(r) { ctx.save(); ctx.globalAlpha = r.life * 0.5; ctx.strokeStyle = r.color; ctx.lineWidth = 2 * r.life; ctx.shadowColor = r.color; ctx.shadowBlur = 10; ctx.beginPath(); ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
   function drawLightningArc(a) { ctx.save(); ctx.globalAlpha = a.life; ctx.strokeStyle = a.color; ctx.lineWidth = 2 * a.life; ctx.shadowColor = a.color; ctx.shadowBlur = 12; ctx.beginPath(); a.segments.forEach((s, i) => { if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y); }); ctx.stroke(); ctx.restore(); }
   function drawOrb(o) { ctx.save(); ctx.globalAlpha = o.life; ctx.beginPath(); ctx.arc(o.x, o.y, 3 + Math.sin(o.phase), 0, Math.PI * 2); ctx.fillStyle = o.color; ctx.shadowColor = o.color; ctx.shadowBlur = 12; ctx.fill(); ctx.globalAlpha = o.life * 0.3; ctx.beginPath(); ctx.arc(o.x, o.y, 6 + Math.sin(o.phase) * 2, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  function drawOrbitingOrb(o) {
+    const t = performance.now() / 1000;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(o.x, o.y, 10 + Math.sin(o.phase) * 2, 0, Math.PI * 2);
+    ctx.fillStyle = o.color || '#a78bfa'; ctx.shadowColor = o.color || '#a78bfa'; ctx.shadowBlur = 18; ctx.fill();
+    ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(o.x, o.y, 14 + Math.sin(o.phase), 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function drawSpectreDrone(d) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(d.x, d.y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = d.color || '#8b5cf6'; ctx.shadowColor = d.color || '#8b5cf6'; ctx.shadowBlur = 12; ctx.fill();
+    ctx.restore();
+  }
+  function drawMine(m) {
+    const t = performance.now() / 1000;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.radius || 12, 0, Math.PI * 2);
+    ctx.fillStyle = (m.color || '#64748b') + '88'; ctx.strokeStyle = m.color || '#64748b'; ctx.lineWidth = 2;
+    ctx.shadowColor = m.color || '#64748b'; ctx.shadowBlur = 10; ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
+  function drawMeteorMarker(mm) {
+    const t = performance.now() / 1000, th = getTheme();
+    const pulse = 1 + Math.sin(t * 4) * 0.1;
+    ctx.save();
+    ctx.beginPath(); ctx.arc(mm.x, mm.y, 12 * pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 15; ctx.stroke();
+    ctx.fillStyle = '#f59e0b22'; ctx.fill();
+    ctx.restore();
+    ctx.save(); ctx.font = '12px "Share Tech Mono", monospace'; ctx.textAlign = 'center';
+    const wordY = mm.y - 20;
+    for (let i = 0; i < mm.word.length; i++) {
+      const cx = mm.x - ((mm.word.length - 1) * 7) / 2 + i * 7;
+      if (i < (mm.typedIndex || 0)) { ctx.fillStyle = th.wordTyped; ctx.shadowColor = th.wordTyped; ctx.shadowBlur = 6; }
+      else if (mm.targeted) { ctx.fillStyle = th.wordTarget; ctx.shadowColor = th.wordTarget; ctx.shadowBlur = 4; }
+      else { ctx.fillStyle = '#f59e0b'; ctx.shadowBlur = 0; }
+      ctx.fillText(mm.word[i], cx, wordY);
+    }
+    ctx.restore();
+  }
+  function drawBeamProjectile(bp) {
+    const t = Math.min(1, bp.progress);
+    const x2 = bp.x1 + (bp.x2 - bp.x1) * t, y2 = bp.y1 + (bp.y2 - bp.y1) * t;
+    drawBeam({ x1: bp.x1, y1: bp.y1, x2, y2, life: 1 - t * 0.5, color: bp.color });
+  }
   function drawBeam(b) {
     ctx.save();
-    ctx.globalAlpha = b.life * 2;
+    ctx.globalAlpha = (b.life || 1) * 2;
     const dx = b.x2 - b.x1, dy = b.y2 - b.y1;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const segs = Math.max(4, Math.floor(dist / 30));
     const px = -(dy), py = dx, len = dist || 1;
+    const life = b.life ?? 1;
 
-    ctx.strokeStyle = b.color; ctx.lineWidth = 3 * b.life; ctx.shadowColor = b.color; ctx.shadowBlur = 20;
+    ctx.strokeStyle = b.color; ctx.lineWidth = 3 * life; ctx.shadowColor = b.color; ctx.shadowBlur = 20;
     ctx.beginPath(); ctx.moveTo(b.x1, b.y1);
     for (let i = 1; i < segs; i++) {
       const t = i / segs;
       const mx = b.x1 + dx * t, my = b.y1 + dy * t;
-      const jit = (Math.random() - 0.5) * 20 * b.life;
+      const jit = (Math.random() - 0.5) * 20 * life;
       ctx.lineTo(mx + (px / len) * jit, my + (py / len) * jit);
     }
     ctx.lineTo(b.x2, b.y2); ctx.stroke();
 
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1 * b.life; ctx.shadowBlur = 8;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1 * life; ctx.shadowBlur = 8;
     ctx.beginPath(); ctx.moveTo(b.x1, b.y1);
     for (let i = 1; i < segs; i++) {
       const t = i / segs;
       const mx = b.x1 + dx * t, my = b.y1 + dy * t;
-      const jit = (Math.random() - 0.5) * 10 * b.life;
+      const jit = (Math.random() - 0.5) * 10 * life;
       ctx.lineTo(mx + (px / len) * jit, my + (py / len) * jit);
     }
     ctx.lineTo(b.x2, b.y2); ctx.stroke();
@@ -3255,7 +3540,7 @@
     dom.healthBar.style.background = hpPct < 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct < 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
 
     // Typing display
-    const target = state.targetAugDrop || state.targetDrop || state.targetEnemy;
+    const target = state.targetMeteorMarker || state.targetAugDrop || state.targetDrop || state.targetEnemy;
     if (target) {
       const isShieldPhase = target.shieldWord && (target.type === 'shielder' || target.type === 'bossShielded') && target.shieldActive;
       const word = isShieldPhase ? target.shieldWord : target.word;
@@ -3492,7 +3777,20 @@
       });
 
       // Update rings / arcs
-      shockwaveRings.forEach((r) => { r.radius += r.speed * dt; r.life -= dt * 1.5; });
+      shockwaveRings.forEach((r) => {
+        r.radius += r.speed * dt;
+        r.life -= dt * 1.5;
+        if (r.damageTargets) {
+          r.damageTargets.forEach((t) => {
+            if (t.enemy.hp <= 0 || r.hitEnemies.has(t.enemy)) return;
+            if (r.radius >= t.dist) {
+              r.hitEnemies.add(t.enemy);
+              damageEnemy(t.enemy, 1, 'weapon', t.precomputed);
+              spawnParticles(t.enemy.x, t.enemy.y, r.color, 3, 2);
+            }
+          });
+        }
+      });
       shockwaveRings = shockwaveRings.filter((r) => r.life > 0 && r.radius < r.maxRadius);
       lightningArcs.forEach((a) => { a.life -= dt * 4; });
       lightningArcs = lightningArcs.filter((a) => a.life > 0);
@@ -3511,6 +3809,17 @@
       // Update beams (arc beam weapon)
       beams.forEach((b) => { b.life -= dt * 2.5; });
       beams = beams.filter((b) => b.life > 0);
+
+      // Update beam projectiles (traveling arc beams)
+      beamProjectiles.forEach((bp) => {
+        bp.progress += dt * bp.speed;
+        if (bp.progress >= 1 && bp.target && bp.target.hp > 0) {
+          damageEnemy(bp.target, bp.damage, bp.source || 'weapon', bp.precomputed);
+          spawnParticles(bp.target.x, bp.target.y, bp.color, 5, 2);
+          bp.progress = 999;
+        }
+      });
+      beamProjectiles = beamProjectiles.filter((bp) => bp.progress < 1);
 
       // Update poison pools (venom weapon)
       poisonPools.forEach((pool) => {
@@ -3533,11 +3842,118 @@
       });
       poisonPools = poisonPools.filter((p) => p.life > 0);
 
+      // Orbiting orbs
+      const orbCount = state.orbCount || 0;
+      while (orbitingOrbs.length < orbCount) {
+        orbitingOrbs.push({ angle: (orbitingOrbs.length / Math.max(1, orbCount)) * Math.PI * 2, radius: 60, phase: Math.random() * Math.PI * 2 });
+      }
+      orbitingOrbs = orbitingOrbs.slice(0, orbCount);
+      orbitingOrbs.forEach((o, i) => {
+        o.angle += dt * 3;
+        o.x = player.x + Math.cos(o.angle + (i / Math.max(1, orbCount)) * Math.PI * 2) * o.radius;
+        o.y = player.y + Math.sin(o.angle + (i / Math.max(1, orbCount)) * Math.PI * 2) * o.radius;
+        o.phase += dt * 4;
+        o.color = '#a78bfa';
+        enemies.forEach((e) => {
+          if (e.hp <= 0) return;
+          if ((e.lastOrbHit || 0) + 500 > performance.now()) return;
+          if (Math.hypot(e.x - o.x, e.y - o.y) < e.size + 12) {
+            e.lastOrbHit = performance.now();
+            damageEnemy(e, 1, 'weapon');
+            spawnParticles(e.x, e.y, o.color, 3, 2);
+          }
+        });
+      });
+
+      // Spectre drones
+      spectreDrones.forEach((d) => {
+        if (!d.target || d.target.hp <= 0) {
+          d.target = enemies.filter((e) => e.hp > 0).sort((a, b) => Math.hypot(a.x - d.x, a.y - d.y) - Math.hypot(b.x - d.x, b.y - d.y))[0];
+        }
+        if (d.target) {
+          const dx = d.target.x - d.x, dy = d.target.y - d.y, dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < d.target.size + 8) {
+            damageEnemy(d.target, 1, 'weapon');
+            spawnParticles(d.x, d.y, d.color, 5, 2);
+            d.life = -1;
+          } else if (dist > 1) {
+            d.x += (dx / dist) * d.speed * dt * 60;
+            d.y += (dy / dist) * d.speed * dt * 60;
+          }
+        }
+        d.life -= dt;
+      });
+      spectreDrones = spectreDrones.filter((d) => d.life > 0);
+
+      // Mines
+      mines.forEach((m) => {
+        m.x += m.vx * dt * 60;
+        m.y += m.vy * dt * 60;
+        m.life -= dt;
+        let exploded = false;
+        enemies.forEach((e) => {
+          if (e.hp <= 0 || exploded) return;
+          if (Math.hypot(e.x - m.x, e.y - m.y) < e.size + m.radius) {
+            exploded = true;
+            enemies.forEach((e2) => {
+              if (e2.hp <= 0) return;
+              const d = Math.hypot(e2.x - m.x, e2.y - m.y);
+              if (d < m.radius + e2.size) {
+                const falloff = 1 - (d / (m.radius + 20)) * 0.5;
+                const mult = state.damageMultiplier * 0.8 * falloff * (state.doubleTimer > 0 ? 2 : 1);
+                e2.hp -= mult;
+                spawnParticles(e2.x, e2.y, m.color, 4, 2);
+                if (e2.hp <= 0) killEnemy(e2, 'weapon');
+              }
+            });
+            spawnParticles(m.x, m.y, m.color, 15, 4);
+          }
+        });
+        if (exploded) m.life = -1;
+      });
+      mines = mines.filter((m) => m.life > 0);
+
+      // Meteor markers
+      if (state.meteorEnabled) {
+        state.meteorTimer = (state.meteorTimer || 0) + dt;
+        if (state.meteorTimer >= 8) {
+          state.meteorTimer = 0;
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 80 + Math.random() * 120;
+          meteorMarkers.push({
+            x: player.x + Math.cos(angle) * dist, y: player.y + Math.sin(angle) * dist,
+            word: getWord(WORDS_EASY), typedIndex: 0, life: 15,
+          });
+        }
+      }
+      meteorMarkers.forEach((mm) => { mm.life -= dt; });
+      meteorMarkers = meteorMarkers.filter((mm) => mm.life > 0);
+      if (state.targetMeteorMarker && !meteorMarkers.includes(state.targetMeteorMarker)) {
+        state.targetMeteorMarker = null;
+        state.currentInput = '';
+      }
+
       // Update projectiles
       projectiles.forEach((p) => {
         p.x += p.vx * dt * 60; p.y += p.vy * dt * 60; p.life -= dt;
 
-        if (p.type === 'shrapnel') {
+        if (p.type === 'meteor') {
+          if (p.y >= (p.targetY || p.y)) {
+            const radius = p.aoeRadius || 80;
+            enemies.forEach((e) => {
+              if (e.hp <= 0) return;
+              const dist = Math.hypot(e.x - p.x, e.y - p.y);
+              if (dist < radius + e.size) {
+                const falloff = 1 - (dist / (radius + 20)) * 0.5;
+                const isCrit = Math.random() < state.critChance;
+                const mult = state.damageMultiplier * 1.5 * falloff * (isCrit ? 2 : 1) * (state.doubleTimer > 0 ? 2 : 1);
+                damageEnemy(e, 1, 'weapon', { isCrit, mult });
+              }
+            });
+            spawnParticles(p.x, p.y, p.color, 25, 5);
+            p.life = -1;
+          }
+        } else if (p.type === 'shrapnel') {
           enemies.forEach((e) => {
             if (e.hp <= 0 || p.pierced.has(e)) return;
             if (Math.hypot(e.x - p.x, e.y - p.y) < e.size + 10) {
@@ -3611,7 +4027,11 @@
         } else {
           if (p.target && p.target.hp > 0) {
             if (Math.hypot(p.target.x - p.x, p.target.y - p.y) < 20) {
-              spawnParticles(p.x, p.y, p.color, 8, 2); p.life = -1;
+              spawnParticles(p.x, p.y, p.color, 8, 2);
+              if (p.precomputed) {
+                damageEnemy(p.target, p.damage || 1, p.source || 'weapon', p.precomputed);
+              }
+              p.life = -1;
             }
           }
           spawnParticles(p.x, p.y, p.color, 1, 0.5);
@@ -3644,10 +4064,15 @@
       lightningArcs.forEach(drawLightningArc);
       particles.forEach(drawParticle);
       orbs.forEach(drawOrb);
+      orbitingOrbs.forEach(drawOrbitingOrb);
+      spectreDrones.forEach(drawSpectreDrone);
+      mines.forEach(drawMine);
+      meteorMarkers.forEach(drawMeteorMarker);
       powerDrops.forEach(drawPowerDrop);
       augmentationDrops.forEach(drawAugmentationDrop);
       enemies.forEach((e) => { if (e.hp > 0) drawEnemy(e); });
       beams.forEach(drawBeam);
+      beamProjectiles.forEach(drawBeamProjectile);
       projectiles.forEach(drawProjectile);
       drawPlayer();
       floatingTexts.forEach(drawFloatingText);

@@ -685,6 +685,22 @@ body.reduced-motion * {
   line-height: 1.5;
 }
 
+.upgrade-input-hint {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--accent);
+  margin-bottom: 1em;
+  min-height: 1.2em;
+}
+
+.upgrade-card-word {
+  margin-top: 1em;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--accent);
+  letter-spacing: 0.1em;
+}
+
 .upgrade-card-key {
   margin-top: 1.2em;
   font-family: 'Orbitron', sans-serif;
