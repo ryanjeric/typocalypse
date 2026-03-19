@@ -1700,12 +1700,24 @@
     dom.upgradeScreen.classList.remove('hidden');
     dom.upgradeTitle.textContent = 'WAVE CLEAR';
     dom.upgradeSubtitle.textContent = `Choose an augmentation, power-up, or field upgrade`;
-    const pool = WAVE_CLEAR_CHOICES.filter((u) => {
+
+    const scoreFallback = WAVE_CLEAR_CHOICES.find((u) => u.id === 'xp');
+
+    const basePool = WAVE_CLEAR_CHOICES.filter((u) => {
+      if (u.id === 'xp') return false;
       if (state.upgrades.includes(u.id)) return false;
       if (u.augmentation && u.weapon && u.weapon !== state.weapon && u.weapon !== state.subWeapon) return false;
       return true;
     });
-    const available = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
+
+    const available = basePool.length
+      ? [...basePool].sort(() => Math.random() - 0.5).slice(0, 3)
+      : (scoreFallback ? [{ ...scoreFallback }] : []);
+
+    if (!basePool.length && scoreFallback) {
+      dom.upgradeSubtitle.textContent = 'All upgrades collected — take a score bonus';
+    }
+
     const usedFirst = [];
     available.forEach((upg) => {
       upg.word = getWordForUpgradeChoice(usedFirst);
@@ -1726,7 +1738,7 @@
 
   function selectWaveClearChoice(upg) {
     upg.apply(state);
-    state.upgrades.push(upg.id);
+    if (upg.id !== 'xp') state.upgrades.push(upg.id);
     dom.upgradeScreen.classList.add('hidden');
     state.screen = 'playing';
     state.wave++;
