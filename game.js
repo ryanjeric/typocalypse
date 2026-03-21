@@ -881,9 +881,43 @@
     return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
   }
 
+  const INPUT_MODE_STORAGE_KEY = 'typocalypse-input-mode';
+
+  function getStoredInputMode() {
+    const v = localStorage.getItem(INPUT_MODE_STORAGE_KEY);
+    if (v === 'mobile' || v === 'desktop') return v;
+    return 'auto';
+  }
+
+  /** Auto follows pointer; Mobile/Desktop are user overrides (Settings). */
+  function useMobileGameMode() {
+    const m = getStoredInputMode();
+    if (m === 'mobile') return true;
+    if (m === 'desktop') return false;
+    return isCoarsePointer();
+  }
+
+  function setInputMode(mode) {
+    if (mode !== 'auto' && mode !== 'mobile' && mode !== 'desktop') return;
+    if (mode === 'auto') localStorage.removeItem(INPUT_MODE_STORAGE_KEY);
+    else localStorage.setItem(INPUT_MODE_STORAGE_KEY, mode);
+    document.documentElement.dataset.inputMode = mode;
+    document.querySelectorAll('.input-mode-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    applyViewportSize();
+  }
+
+  function initInputModePreference() {
+    document.documentElement.dataset.inputMode = getStoredInputMode();
+    document.querySelectorAll('.input-mode-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.mode === getStoredInputMode());
+    });
+  }
+
   /** Desktop: classic full-window canvas (same as pre-mobile work). Touch: visualViewport for OS UI / keyboard. */
   function applyViewportSize() {
-    if (!isCoarsePointer()) {
+    if (!useMobileGameMode()) {
       const w = Math.max(1, window.innerWidth);
       const h = Math.max(1, window.innerHeight);
       W = canvas.width = w;
@@ -938,10 +972,10 @@
   }
 
   /**
-   * Spawn/word pressure tuning — touch (coarse pointer) only. Desktop uses neutral multipliers.
+   * Spawn/word pressure tuning — mobile game mode only (auto: coarse pointer).
    */
   function getViewportBalanceMults() {
-    if (!isCoarsePointer()) {
+    if (!useMobileGameMode()) {
       return { waveCountMult: 1, spawnIntervalMult: 1, maxAlive: 1e9 };
     }
 
@@ -1047,8 +1081,7 @@
   function updateSoftKeyboardVisibility() {
     const sk = dom.softKeyboard;
     if (!sk) return;
-    const coarse = isCoarsePointer();
-    const active = coarse && (
+    const active = useMobileGameMode() && (
       state.screen === 'playing' ||
       state.screen === 'upgrade' ||
       state.screen === 'weaponSelect'
@@ -1064,6 +1097,7 @@
     }
   }
 
+  initInputModePreference();
   window.addEventListener('resize', applyViewportSize);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', applyViewportSize);
@@ -4523,6 +4557,10 @@
   loadWordlistSettings();
   wireWordSourceButtons();
   wireCustomWords();
+
+  document.querySelectorAll('.input-mode-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setInputMode(btn.dataset.mode));
+  });
 
   if (dom.settingsBtn) dom.settingsBtn.addEventListener('click', () => {
     updateDensityButtons();
