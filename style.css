@@ -185,6 +185,62 @@ body.solar-mode {
   z-index: 1;
 }
 
+.game-keyboard-capture {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  caret-color: transparent;
+  font-size: 16px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.touch-only {
+  display: none !important;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .touch-only {
+    display: inline-flex !important;
+  }
+
+  .weapon-keyboard-btn.touch-only {
+    display: inline-flex !important;
+  }
+}
+
+.keyboard-btn-hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.35em 0.55em;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  align-items: center;
+  justify-content: center;
+  pointer-events: all;
+  transition: all 0.3s ease;
+  z-index: 11;
+  min-width: 2.2em;
+}
+
+.keyboard-btn-hud:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .hidden {
   display: none !important;
 }

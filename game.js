@@ -784,9 +784,6 @@
   const SHRAPNEL_COUNT_MAX = 12;
   const ENEMY_SLOW_FLOOR = 0.3;
   const EASY_WORD_BIAS_MAX = 0.6;
-  const resize = () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; };
-  window.addEventListener('resize', resize);
-  resize();
 
   const state = {
     screen: 'menu', hp: 100, maxHp: 100, score: 0, wave: 1,
@@ -876,7 +873,65 @@
     pauseResumeBtn: document.getElementById('pause-resume-btn'),
     pauseRestartBtn: document.getElementById('pause-restart-btn'),
     pauseQuitBtn: document.getElementById('pause-quit-btn'),
+    keyboardBtn: document.getElementById('keyboard-btn'),
+    keyboardCapture: document.getElementById('game-keyboard-capture'),
+    weaponKeyboardBtn: document.getElementById('weapon-keyboard-btn'),
   };
+
+  function applyViewportSize() {
+    const vv = window.visualViewport;
+    let w;
+    let h;
+    let top = 0;
+    let left = 0;
+    if (vv) {
+      w = Math.max(1, Math.round(vv.width));
+      h = Math.max(1, Math.round(vv.height));
+      left = Math.round(vv.offsetLeft);
+      top = Math.round(vv.offsetTop);
+    } else {
+      w = Math.max(1, window.innerWidth);
+      h = Math.max(1, window.innerHeight);
+    }
+    W = canvas.width = w;
+    H = canvas.height = h;
+    canvas.style.position = 'fixed';
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    canvas.style.left = `${left}px`;
+    canvas.style.top = `${top}px`;
+    if (dom.hud) {
+      dom.hud.style.position = 'fixed';
+      dom.hud.style.left = `${left}px`;
+      dom.hud.style.top = `${top}px`;
+      dom.hud.style.width = `${w}px`;
+      dom.hud.style.height = `${h}px`;
+      dom.hud.style.right = 'auto';
+      dom.hud.style.bottom = 'auto';
+    }
+  }
+
+  function focusGameKeyboardCapture() {
+    if (!dom.keyboardCapture) return;
+    try {
+      dom.keyboardCapture.focus({ preventScroll: true });
+    } catch {
+      dom.keyboardCapture.focus();
+    }
+  }
+
+  function blurGameKeyboardCapture() {
+    if (dom.keyboardCapture && document.activeElement === dom.keyboardCapture) {
+      dom.keyboardCapture.blur();
+    }
+  }
+
+  window.addEventListener('resize', applyViewportSize);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', applyViewportSize);
+    window.visualViewport.addEventListener('scroll', applyViewportSize);
+  }
+  applyViewportSize();
 
   // --- High Scores ---
 
@@ -1900,6 +1955,7 @@
 
   function showGameOver() {
     state.screen = 'gameover';
+    blurGameKeyboardCapture();
     dom.hud.classList.add('hidden');
     dom.pauseScreen.classList.add('hidden');
     dom.gameOverScreen.classList.remove('hidden');
@@ -1944,6 +2000,7 @@
 
   function showMenu() {
     state.screen = 'menu';
+    blurGameKeyboardCapture();
     dom.gameOverScreen.classList.add('hidden');
     dom.upgradeScreen.classList.add('hidden');
     dom.hud.classList.add('hidden');
@@ -2901,6 +2958,54 @@
     }
     handleKeyDown(e);
   });
+
+  let lastCaptureKeydownAt = 0;
+  if (dom.keyboardBtn) {
+    dom.keyboardBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      focusGameKeyboardCapture();
+    });
+  }
+  if (dom.weaponKeyboardBtn) {
+    dom.weaponKeyboardBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      focusGameKeyboardCapture();
+    });
+  }
+  if (dom.keyboardCapture) {
+    dom.keyboardCapture.addEventListener('keydown', (e) => {
+      lastCaptureKeydownAt = performance.now();
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        return;
+      }
+      e.stopPropagation();
+      handleKeyDown(e);
+    });
+    dom.keyboardCapture.addEventListener('input', (e) => {
+      if (e.isComposing) return;
+      if (performance.now() - lastCaptureKeydownAt < 45) return;
+      const el = dom.keyboardCapture;
+      if (!el || document.activeElement !== el) return;
+      const v = el.value;
+      el.value = '';
+      if (!v) return;
+      for (let i = 0; i < v.length; i++) {
+        const key = v[i].toLowerCase();
+        if (key.length !== 1) continue;
+        handleKeyDown({
+          key,
+          preventDefault() {},
+          stopPropagation() {},
+          ctrlKey: false,
+          altKey: false,
+          metaKey: false,
+        });
+      }
+    });
+  }
+
   dom.startBtn.addEventListener('click', showWeaponSelect);
   dom.restartBtn.addEventListener('click', showWeaponSelect);
   dom.menuBtn.addEventListener('click', showMenu);
@@ -2995,6 +3100,7 @@
     if (state.screen !== 'playing' && state.screen !== 'paused') return;
     if (state.screen === 'playing') {
       state.screen = 'paused';
+      blurGameKeyboardCapture();
       dom.pauseScreen.classList.remove('hidden');
       updatePauseStats();
       updateDensityButtons();

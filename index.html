@@ -39,6 +39,7 @@
         <button class="diff-btn" data-diff="hard" style="color:#ef4444;border-color:#ef4444">HARD</button>
       </div>
       <div class="weapon-cards" id="weapon-cards"></div>
+      <button type="button" id="weapon-keyboard-btn" class="weapon-keyboard-btn menu-btn secondary touch-only" style="margin-top:1em">SHOW KEYBOARD</button>
     </div>
   </div>
 
@@ -161,7 +162,10 @@
 
   <canvas id="game-canvas"></canvas>
 
+  <input id="game-keyboard-capture" class="game-keyboard-capture" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" aria-hidden="true" tabindex="-1" />
+
   <div id="hud" class="hidden">
+    <button type="button" id="keyboard-btn" class="keyboard-btn-hud touch-only" aria-label="Show keyboard">⌨</button>
     <button id="pause-btn" class="pause-btn-hud">II</button>
     <button id="theme-toggle-hud" class="theme-toggle-hud">THEME</button>
     <div class="hud-top">
