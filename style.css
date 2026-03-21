@@ -197,14 +197,14 @@ body.solar-mode {
   }
 }
 
-/* On-screen QWERTY for touch devices (no OS keyboard) */
+/* On-screen QWERTY for touch devices (no OS keyboard) — large tap targets (≥48px) */
 .soft-keyboard {
   flex-direction: column;
   align-items: stretch;
-  gap: 0.35rem;
+  gap: 0.5rem;
   width: 100%;
   margin-top: 0.4rem;
-  padding-top: 0.45rem;
+  padding-top: 0.5rem;
   border-top: 1px solid rgba(255, 255, 255, 0.12);
   pointer-events: auto;
 }
@@ -216,7 +216,7 @@ body.solar-mode {
   bottom: 0;
   z-index: 250;
   margin: 0;
-  padding: 0.45rem max(0.35rem, env(safe-area-inset-right)) calc(0.55rem + env(safe-area-inset-bottom)) max(0.35rem, env(safe-area-inset-left));
+  padding: 0.6rem max(0.45rem, env(safe-area-inset-right)) calc(0.65rem + env(safe-area-inset-bottom)) max(0.45rem, env(safe-area-inset-left));
   background: rgba(var(--hud-bg-r), var(--hud-bg-g), var(--hud-bg-b), 0.97);
   border-top: 1px solid var(--card-border);
   backdrop-filter: blur(10px);
@@ -225,50 +225,66 @@ body.solar-mode {
 
 .soft-keyboard-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 0.3rem;
+  gap: 0.45rem;
 }
 
 .soft-keyboard-row--tools {
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
 }
 
 .soft-key {
-  flex: 1 1 auto;
-  min-width: 1.65rem;
-  max-width: 2.85rem;
-  padding: 0.55rem 0.2rem;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 3.05rem;
+  padding: 0.5rem 0.12rem;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.65rem;
+  font-size: clamp(0.72rem, 3.8vw, 0.95rem);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .soft-key:active {
-  background: rgba(0, 240, 255, 0.15);
+  background: rgba(0, 240, 255, 0.18);
   border-color: var(--accent);
   color: var(--accent);
 }
 
 .soft-key--wide {
-  max-width: 4.25rem;
-  flex: 1.15 1 auto;
-  font-size: 0.55rem;
+  flex: 1.35 1 0;
+  min-width: 4.75rem;
+  max-width: 6.5rem;
+  min-height: 3.05rem;
+  font-size: clamp(0.62rem, 3.2vw, 0.78rem);
 }
 
 .soft-key--tool {
-  max-width: 6rem;
   flex: 0 1 auto;
-  min-width: 4rem;
+  min-width: 6rem;
+  min-height: 3.05rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
   color: var(--muted2);
+}
+
+@media (max-width: 380px) {
+  .soft-keyboard-row {
+    gap: 0.32rem;
+  }
+
+  .soft-key {
+    min-height: 2.9rem;
+  }
 }
 
 .hidden {

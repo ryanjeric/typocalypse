@@ -910,15 +910,40 @@
     }
   }
 
-  /** Smaller viewports = fewer wave enemies, slower spawn cadence, lower alive cap. */
+  /**
+   * Fewer words on screen when: small viewport, touch / coarse pointer, easy difficulty.
+   * Uses a desktop-sized ref so phones land at low t and get stronger reduction.
+   */
   function getViewportBalanceMults() {
     const area = Math.max(1, W * H);
-    const ref = 720 * 640;
-    const t = Math.min(1, area / ref);
+    const refArea = 1280 * 720;
+    const t = Math.min(1, area / refArea);
+    const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+    const diffId = state.difficulty || 'normal';
+
+    let waveCountMult = 0.28 + 0.58 * t;
+    let spawnIntervalMult = 1 + (1 - t) * 1.28;
+    let maxAlive = Math.max(4, Math.floor(3 + 13 * t));
+
+    if (coarse) {
+      waveCountMult *= 0.78;
+      spawnIntervalMult *= 1.16;
+      maxAlive = Math.max(4, Math.floor(maxAlive * 0.76));
+    }
+    if (diffId === 'easy') {
+      waveCountMult *= 0.62;
+      spawnIntervalMult *= 1.26;
+      maxAlive = Math.max(4, Math.floor(maxAlive * 0.7));
+    } else if (diffId === 'normal') {
+      waveCountMult *= 0.88;
+      spawnIntervalMult *= 1.06;
+      maxAlive = Math.max(4, Math.floor(maxAlive * 0.9));
+    }
+
     return {
-      waveCountMult: 0.52 + 0.48 * t,
-      spawnIntervalMult: 1 + (1 - t) * 0.95,
-      maxAlive: Math.max(6, Math.floor(5 + 20 * t)),
+      waveCountMult: Math.max(0.2, waveCountMult),
+      spawnIntervalMult: Math.min(3.2, spawnIntervalMult),
+      maxAlive: Math.max(4, maxAlive),
     };
   }
 
@@ -3873,7 +3898,7 @@
         while (state.spawnTimer <= 0 && state.waveEnemiesLeft > 0) {
           const alive = enemies.filter((e) => e.hp > 0).length;
           if (alive >= maxAlive) {
-            state.spawnTimer = 0.15;
+            state.spawnTimer = 0.22;
             break;
           }
           spawnEnemy();
