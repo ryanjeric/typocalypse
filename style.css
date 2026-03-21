@@ -1921,9 +1921,9 @@ body.light-mode .exp-progress {
   }
 
   .typing-display {
-    font-size: clamp(1rem, 4vw, 1.35rem) !important;
     text-align: center;
     word-break: break-word;
+    max-width: 100%;
   }
 
   .hud-upgrades {
