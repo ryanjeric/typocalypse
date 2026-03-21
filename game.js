@@ -876,6 +876,10 @@
     keyboardBtn: document.getElementById('keyboard-btn'),
     keyboardCapture: document.getElementById('game-keyboard-capture'),
     weaponKeyboardBtn: document.getElementById('weapon-keyboard-btn'),
+    keyboardPanel: document.getElementById('keyboard-panel'),
+    keyboardPanelBackdrop: document.getElementById('keyboard-panel-backdrop'),
+    keyboardPanelFocusBtn: document.getElementById('keyboard-panel-focus-btn'),
+    keyboardPanelCloseBtn: document.getElementById('keyboard-panel-close-btn'),
   };
 
   function applyViewportSize() {
@@ -924,6 +928,19 @@
     if (dom.keyboardCapture && document.activeElement === dom.keyboardCapture) {
       dom.keyboardCapture.blur();
     }
+  }
+
+  function openKeyboardPanel() {
+    if (!dom.keyboardPanel) return;
+    dom.keyboardPanel.classList.remove('hidden');
+    dom.keyboardPanel.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeKeyboardPanel(options) {
+    if (!dom.keyboardPanel) return;
+    dom.keyboardPanel.classList.add('hidden');
+    dom.keyboardPanel.setAttribute('aria-hidden', 'true');
+    if (options && options.blurCapture) blurGameKeyboardCapture();
   }
 
   window.addEventListener('resize', applyViewportSize);
@@ -1955,6 +1972,7 @@
 
   function showGameOver() {
     state.screen = 'gameover';
+    closeKeyboardPanel();
     blurGameKeyboardCapture();
     dom.hud.classList.add('hidden');
     dom.pauseScreen.classList.add('hidden');
@@ -2000,6 +2018,7 @@
 
   function showMenu() {
     state.screen = 'menu';
+    closeKeyboardPanel();
     blurGameKeyboardCapture();
     dom.gameOverScreen.classList.add('hidden');
     dom.upgradeScreen.classList.add('hidden');
@@ -2930,6 +2949,11 @@
   });
 
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && dom.keyboardPanel && !dom.keyboardPanel.classList.contains('hidden')) {
+      closeKeyboardPanel({ blurCapture: true });
+      e.preventDefault();
+      return;
+    }
     if (e.key === 'Escape') {
       if (!dom.scoresScreen.classList.contains('hidden')) {
         dom.scoresScreen.classList.add('hidden');
@@ -2960,16 +2984,34 @@
   });
 
   let lastCaptureKeydownAt = 0;
+  if (dom.keyboardPanelFocusBtn) {
+    dom.keyboardPanelFocusBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      focusGameKeyboardCapture();
+      closeKeyboardPanel();
+    });
+  }
+  if (dom.keyboardPanelCloseBtn) {
+    dom.keyboardPanelCloseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeKeyboardPanel({ blurCapture: true });
+    });
+  }
+  if (dom.keyboardPanelBackdrop) {
+    dom.keyboardPanelBackdrop.addEventListener('click', () => {
+      closeKeyboardPanel({ blurCapture: true });
+    });
+  }
   if (dom.keyboardBtn) {
     dom.keyboardBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      focusGameKeyboardCapture();
+      openKeyboardPanel();
     });
   }
   if (dom.weaponKeyboardBtn) {
     dom.weaponKeyboardBtn.addEventListener('click', (e) => {
       e.preventDefault();
-      focusGameKeyboardCapture();
+      openKeyboardPanel();
     });
   }
   if (dom.keyboardCapture) {
@@ -3100,6 +3142,7 @@
     if (state.screen !== 'playing' && state.screen !== 'paused') return;
     if (state.screen === 'playing') {
       state.screen = 'paused';
+      closeKeyboardPanel();
       blurGameKeyboardCapture();
       dom.pauseScreen.classList.remove('hidden');
       updatePauseStats();
