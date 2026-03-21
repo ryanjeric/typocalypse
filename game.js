@@ -873,13 +873,8 @@
     pauseResumeBtn: document.getElementById('pause-resume-btn'),
     pauseRestartBtn: document.getElementById('pause-restart-btn'),
     pauseQuitBtn: document.getElementById('pause-quit-btn'),
-    keyboardBtn: document.getElementById('keyboard-btn'),
-    keyboardCapture: document.getElementById('game-keyboard-capture'),
-    weaponKeyboardBtn: document.getElementById('weapon-keyboard-btn'),
-    keyboardPanel: document.getElementById('keyboard-panel'),
-    keyboardPanelBackdrop: document.getElementById('keyboard-panel-backdrop'),
-    keyboardPanelFocusBtn: document.getElementById('keyboard-panel-focus-btn'),
-    keyboardPanelCloseBtn: document.getElementById('keyboard-panel-close-btn'),
+    hudBottom: document.getElementById('hud-bottom'),
+    softKeyboard: document.getElementById('soft-keyboard'),
   };
 
   function applyViewportSize() {
@@ -915,32 +910,105 @@
     }
   }
 
-  function focusGameKeyboardCapture() {
-    if (!dom.keyboardCapture) return;
-    try {
-      dom.keyboardCapture.focus({ preventScroll: true });
-    } catch {
-      dom.keyboardCapture.focus();
+  /** Smaller viewports = fewer wave enemies, slower spawn cadence, lower alive cap. */
+  function getViewportBalanceMults() {
+    const area = Math.max(1, W * H);
+    const ref = 720 * 640;
+    const t = Math.min(1, area / ref);
+    return {
+      waveCountMult: 0.52 + 0.48 * t,
+      spawnIntervalMult: 1 + (1 - t) * 0.95,
+      maxAlive: Math.max(6, Math.floor(5 + 20 * t)),
+    };
+  }
+
+  function emitSoftKey(key) {
+    handleKeyDown({
+      key,
+      preventDefault() {},
+      stopPropagation() {},
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+    });
+  }
+
+  function initSoftKeyboard() {
+    const root = dom.softKeyboard;
+    if (!root) return;
+    const rows = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+    root.innerHTML = '';
+    rows.forEach((row, ri) => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'soft-keyboard-row';
+      if (ri === 2) {
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'soft-key soft-key--wide';
+        tab.textContent = 'TAB';
+        tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          emitSoftKey('Tab');
+        });
+        rowEl.appendChild(tab);
+      }
+      row.split('').forEach((ch) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'soft-key';
+        b.textContent = ch;
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          emitSoftKey(ch);
+        });
+        rowEl.appendChild(b);
+      });
+      if (ri === 2) {
+        const bs = document.createElement('button');
+        bs.type = 'button';
+        bs.className = 'soft-key soft-key--wide';
+        bs.textContent = '\u232b';
+        bs.setAttribute('aria-label', 'Backspace');
+        bs.addEventListener('click', (e) => {
+          e.preventDefault();
+          emitSoftKey('Backspace');
+        });
+        rowEl.appendChild(bs);
+      }
+      root.appendChild(rowEl);
+    });
+    const rowEsc = document.createElement('div');
+    rowEsc.className = 'soft-keyboard-row soft-keyboard-row--tools';
+    const esc = document.createElement('button');
+    esc.type = 'button';
+    esc.className = 'soft-key soft-key--tool';
+    esc.textContent = 'ESC';
+    esc.addEventListener('click', (e) => {
+      e.preventDefault();
+      emitSoftKey('Escape');
+    });
+    rowEsc.appendChild(esc);
+    root.appendChild(rowEsc);
+  }
+
+  function updateSoftKeyboardVisibility() {
+    const sk = dom.softKeyboard;
+    if (!sk) return;
+    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    const active = coarse && (
+      state.screen === 'playing' ||
+      state.screen === 'upgrade' ||
+      state.screen === 'weaponSelect'
+    );
+    sk.classList.toggle('hidden', !active);
+    if (!active) return;
+    const overlay = state.screen === 'upgrade' || state.screen === 'weaponSelect';
+    sk.classList.toggle('soft-keyboard--overlay', overlay);
+    if (state.screen === 'playing' && dom.hudBottom) {
+      dom.hudBottom.appendChild(sk);
+    } else {
+      document.body.appendChild(sk);
     }
-  }
-
-  function blurGameKeyboardCapture() {
-    if (dom.keyboardCapture && document.activeElement === dom.keyboardCapture) {
-      dom.keyboardCapture.blur();
-    }
-  }
-
-  function openKeyboardPanel() {
-    if (!dom.keyboardPanel) return;
-    dom.keyboardPanel.classList.remove('hidden');
-    dom.keyboardPanel.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeKeyboardPanel(options) {
-    if (!dom.keyboardPanel) return;
-    dom.keyboardPanel.classList.add('hidden');
-    dom.keyboardPanel.setAttribute('aria-hidden', 'true');
-    if (options && options.blurCapture) blurGameKeyboardCapture();
   }
 
   window.addEventListener('resize', applyViewportSize);
@@ -1535,6 +1603,7 @@
 
   function startWave() {
     const diff = DIFFICULTY_PRESETS[state.difficulty || 'normal'];
+    const vb = getViewportBalanceMults();
     const levelBonus = Math.floor((state.level || 1) * 1.5);
     let base = 8 + state.wave * 4 + levelBonus;
     const isMinibossWave = state.wave % 3 === 0 && state.wave % 5 !== 0 && state.wave >= 3;
@@ -1548,6 +1617,7 @@
     }
     if (state.wave >= 10) base = Math.min(base, 35 + 2 * state.wave);
     if (state.mode === 'daily') base = Math.max(6, Math.floor(base * 0.9));
+    base = Math.max(4, Math.floor(base * vb.waveCountMult));
     state.waveEnemiesTotal = base;
     state.waveEnemiesLeft = base;
     state.waveActive = true;
@@ -1556,7 +1626,7 @@
     let spawnInterval = Math.max(0.4, (0.9 - state.wave * 0.04) * diff.spawnMult * spawnMultSub);
     if (isMinibossWave) spawnInterval *= 1.2;
     if (isBossWave) spawnInterval *= 1.1;
-    state.spawnInterval = spawnInterval;
+    state.spawnInterval = spawnInterval * vb.spawnIntervalMult;
     const el = document.createElement('div');
     el.className = 'wave-announce';
     el.textContent = `WAVE ${state.wave}`;
@@ -1972,8 +2042,6 @@
 
   function showGameOver() {
     state.screen = 'gameover';
-    closeKeyboardPanel();
-    blurGameKeyboardCapture();
     dom.hud.classList.add('hidden');
     dom.pauseScreen.classList.add('hidden');
     dom.gameOverScreen.classList.remove('hidden');
@@ -2018,8 +2086,6 @@
 
   function showMenu() {
     state.screen = 'menu';
-    closeKeyboardPanel();
-    blurGameKeyboardCapture();
     dom.gameOverScreen.classList.add('hidden');
     dom.upgradeScreen.classList.add('hidden');
     dom.hud.classList.add('hidden');
@@ -2949,11 +3015,6 @@
   });
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && dom.keyboardPanel && !dom.keyboardPanel.classList.contains('hidden')) {
-      closeKeyboardPanel({ blurCapture: true });
-      e.preventDefault();
-      return;
-    }
     if (e.key === 'Escape') {
       if (!dom.scoresScreen.classList.contains('hidden')) {
         dom.scoresScreen.classList.add('hidden');
@@ -2982,71 +3043,6 @@
     }
     handleKeyDown(e);
   });
-
-  let lastCaptureKeydownAt = 0;
-  if (dom.keyboardPanelFocusBtn) {
-    dom.keyboardPanelFocusBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      focusGameKeyboardCapture();
-      closeKeyboardPanel();
-    });
-  }
-  if (dom.keyboardPanelCloseBtn) {
-    dom.keyboardPanelCloseBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      closeKeyboardPanel({ blurCapture: true });
-    });
-  }
-  if (dom.keyboardPanelBackdrop) {
-    dom.keyboardPanelBackdrop.addEventListener('click', () => {
-      closeKeyboardPanel({ blurCapture: true });
-    });
-  }
-  if (dom.keyboardBtn) {
-    dom.keyboardBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      openKeyboardPanel();
-    });
-  }
-  if (dom.weaponKeyboardBtn) {
-    dom.weaponKeyboardBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      openKeyboardPanel();
-    });
-  }
-  if (dom.keyboardCapture) {
-    dom.keyboardCapture.addEventListener('keydown', (e) => {
-      lastCaptureKeydownAt = performance.now();
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-        return;
-      }
-      e.stopPropagation();
-      handleKeyDown(e);
-    });
-    dom.keyboardCapture.addEventListener('input', (e) => {
-      if (e.isComposing) return;
-      if (performance.now() - lastCaptureKeydownAt < 45) return;
-      const el = dom.keyboardCapture;
-      if (!el || document.activeElement !== el) return;
-      const v = el.value;
-      el.value = '';
-      if (!v) return;
-      for (let i = 0; i < v.length; i++) {
-        const key = v[i].toLowerCase();
-        if (key.length !== 1) continue;
-        handleKeyDown({
-          key,
-          preventDefault() {},
-          stopPropagation() {},
-          ctrlKey: false,
-          altKey: false,
-          metaKey: false,
-        });
-      }
-    });
-  }
 
   dom.startBtn.addEventListener('click', showWeaponSelect);
   dom.restartBtn.addEventListener('click', showWeaponSelect);
@@ -3142,8 +3138,6 @@
     if (state.screen !== 'playing' && state.screen !== 'paused') return;
     if (state.screen === 'playing') {
       state.screen = 'paused';
-      closeKeyboardPanel();
-      blurGameKeyboardCapture();
       dom.pauseScreen.classList.remove('hidden');
       updatePauseStats();
       updateDensityButtons();
@@ -3875,7 +3869,13 @@
       // Spawning
       if (state.waveActive && state.waveEnemiesLeft > 0) {
         state.spawnTimer -= dt;
+        const maxAlive = getViewportBalanceMults().maxAlive;
         while (state.spawnTimer <= 0 && state.waveEnemiesLeft > 0) {
+          const alive = enemies.filter((e) => e.hp > 0).length;
+          if (alive >= maxAlive) {
+            state.spawnTimer = 0.15;
+            break;
+          }
           spawnEnemy();
           state.waveEnemiesLeft--;
           state.spawnTimer += state.spawnInterval;
@@ -4309,6 +4309,7 @@
       drawMenuBackground(now);
     }
 
+    updateSoftKeyboardVisibility();
     requestAnimationFrame(gameLoop);
   }
 
@@ -4357,6 +4358,7 @@
   }
 
   wireDensityButtons();
+  initSoftKeyboard();
   updateDensityButtons();
 
   function updateSoundButtons() {

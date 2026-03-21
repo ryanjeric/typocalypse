@@ -39,7 +39,6 @@
         <button class="diff-btn" data-diff="hard" style="color:#ef4444;border-color:#ef4444">HARD</button>
       </div>
       <div class="weapon-cards" id="weapon-cards"></div>
-      <button type="button" id="weapon-keyboard-btn" class="weapon-keyboard-link touch-only">Open typing keyboard</button>
     </div>
   </div>
 
@@ -162,21 +161,7 @@
 
   <canvas id="game-canvas"></canvas>
 
-  <div id="keyboard-panel" class="keyboard-panel hidden" role="dialog" aria-modal="true" aria-labelledby="keyboard-panel-title" aria-hidden="true">
-    <div class="keyboard-panel-backdrop" id="keyboard-panel-backdrop"></div>
-    <div class="keyboard-panel-sheet">
-      <div class="keyboard-panel-handle" aria-hidden="true"></div>
-      <h3 id="keyboard-panel-title" class="keyboard-panel-title">Typing keyboard</h3>
-      <p class="keyboard-panel-desc">Use your device keyboard to type words and select upgrades. Tap below when you’re ready to type.</p>
-      <button type="button" id="keyboard-panel-focus-btn" class="menu-btn keyboard-panel-primary">OPEN KEYBOARD</button>
-      <button type="button" id="keyboard-panel-close-btn" class="menu-btn secondary">CLOSE</button>
-    </div>
-  </div>
-
-  <input id="game-keyboard-capture" class="game-keyboard-capture" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text" aria-hidden="true" tabindex="-1" />
-
   <div id="hud" class="hidden">
-    <button type="button" id="keyboard-btn" class="hud-keyboard-trigger touch-only" aria-label="Typing keyboard" aria-haspopup="dialog">KEYBOARD</button>
     <button id="pause-btn" class="pause-btn-hud">II</button>
     <button id="theme-toggle-hud" class="theme-toggle-hud">THEME</button>
     <div class="hud-top">
@@ -218,13 +203,14 @@
       <div class="boss-health-bar"><div class="boss-health-fill" id="boss-health-fill"></div></div>
       <span class="boss-health-text" id="boss-health-text">0 / 0</span>
     </div>
-    <div class="hud-bottom">
+    <div class="hud-bottom" id="hud-bottom">
       <div class="hud-effects" id="hud-effects"></div>
       <div class="health-bar-container">
         <div class="health-bar" id="health-bar"></div>
         <span class="health-text" id="health-text">100 / 100</span>
       </div>
       <div class="typing-display" id="typing-display"></div>
+      <div id="soft-keyboard" class="soft-keyboard touch-only hidden" aria-label="On-screen keyboard"></div>
     </div>
   </div>
 
