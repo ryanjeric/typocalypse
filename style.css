@@ -441,6 +441,83 @@ body.light-mode .game-title {
   color: var(--muted2);
 }
 
+/* Main menu: tablets, phone landscape, and narrow desktops */
+@media (max-width: 1040px) {
+  #menu-screen {
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(1.5rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .menu-content {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 0.5rem clamp(0.5rem, 4vw, 1.25rem);
+    box-sizing: border-box;
+  }
+
+  .game-title {
+    font-size: clamp(1.45rem, 6.5vw, 3.25rem);
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+    padding: 0 clamp(0.25rem, 3vw, 1rem);
+    max-width: 100%;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  .game-subtitle {
+    font-size: clamp(0.6rem, 2.2vw, 1rem);
+    letter-spacing: 0.22em;
+    margin-bottom: 1.75em;
+    padding: 0 clamp(0.25rem, 2vw, 0.75rem);
+    line-height: 1.45;
+  }
+
+  .menu-btn {
+    min-width: unset;
+    width: 100%;
+    max-width: min(320px, 100%);
+    box-sizing: border-box;
+    padding: 0.85em 1.25em;
+    font-size: clamp(0.82rem, 2.5vw, 1.05rem);
+    letter-spacing: 0.12em;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .menu-hint {
+    margin-top: 1.5em;
+    font-size: clamp(0.68rem, 2vw, 0.85rem);
+    line-height: 1.55;
+    padding: 0 clamp(0.35rem, 3vw, 1rem);
+    max-width: 26rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .menu-stats {
+    margin-bottom: 1.25em;
+    font-size: clamp(0.75rem, 2.1vw, 0.9rem);
+    padding: 0 clamp(0.35rem, 3vw, 1rem);
+    line-height: 1.5;
+  }
+
+  .theme-toggle {
+    margin-top: 0.75em;
+    font-size: clamp(0.52rem, 1.8vw, 0.68rem);
+    padding: 0.55em 1em;
+    max-width: calc(100% - 0.5rem);
+  }
+}
+
 /* Theme toggle */
 .theme-toggle {
   font-family: 'Orbitron', sans-serif;
@@ -1675,50 +1752,16 @@ body.light-mode .exp-progress {
 /* --- Mobile & narrow viewports --- */
 @media (max-width: 640px) {
   #menu-screen {
-    align-items: flex-start;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
-  }
-
-  .menu-content {
-    width: 100%;
-    max-width: 100%;
-    padding: 0 0.25rem;
+    padding: max(1rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
   }
 
   .game-title {
-    font-size: clamp(1.6rem, 9vw, 3rem);
-    letter-spacing: 0.12em;
-    line-height: 1.1;
+    font-size: clamp(1.35rem, 8.5vw, 2.75rem);
+    letter-spacing: 0.04em;
   }
 
   .game-subtitle {
-    font-size: clamp(0.65rem, 2.8vw, 1rem);
-    letter-spacing: 0.35em;
-    margin-bottom: 1.5em;
-  }
-
-  .menu-btn {
-    min-width: unset;
-    width: 100%;
-    max-width: 320px;
-    padding: 0.85em 1.25em;
-    font-size: 0.95rem;
-    letter-spacing: 0.12em;
-  }
-
-  .menu-hint {
-    margin-top: 1.5em;
-    padding: 0 0.5rem;
-    font-size: 0.75rem;
-    line-height: 1.45;
-  }
-
-  .theme-toggle {
-    margin-top: 0.75em;
-    font-size: 0.6rem;
-    padding: 0.5em 1em;
+    letter-spacing: 0.2em;
   }
 
   #weapon-screen,
