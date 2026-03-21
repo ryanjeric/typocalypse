@@ -877,7 +877,34 @@
     softKeyboard: document.getElementById('soft-keyboard'),
   };
 
+  function isCoarsePointer() {
+    return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+  }
+
+  /** Desktop: classic full-window canvas (same as pre-mobile work). Touch: visualViewport for OS UI / keyboard. */
   function applyViewportSize() {
+    if (!isCoarsePointer()) {
+      const w = Math.max(1, window.innerWidth);
+      const h = Math.max(1, window.innerHeight);
+      W = canvas.width = w;
+      H = canvas.height = h;
+      canvas.style.position = '';
+      canvas.style.width = '';
+      canvas.style.height = '';
+      canvas.style.left = '';
+      canvas.style.top = '';
+      if (dom.hud) {
+        dom.hud.style.position = '';
+        dom.hud.style.left = '';
+        dom.hud.style.top = '';
+        dom.hud.style.width = '';
+        dom.hud.style.height = '';
+        dom.hud.style.right = '';
+        dom.hud.style.bottom = '';
+      }
+      return;
+    }
+
     const vv = window.visualViewport;
     let w;
     let h;
@@ -911,25 +938,26 @@
   }
 
   /**
-   * Fewer words on screen when: small viewport, touch / coarse pointer, easy difficulty.
-   * Uses a desktop-sized ref so phones land at low t and get stronger reduction.
+   * Spawn/word pressure tuning — touch (coarse pointer) only. Desktop uses neutral multipliers.
    */
   function getViewportBalanceMults() {
+    if (!isCoarsePointer()) {
+      return { waveCountMult: 1, spawnIntervalMult: 1, maxAlive: 1e9 };
+    }
+
     const area = Math.max(1, W * H);
     const refArea = 1280 * 720;
     const t = Math.min(1, area / refArea);
-    const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
     const diffId = state.difficulty || 'normal';
 
     let waveCountMult = 0.28 + 0.58 * t;
     let spawnIntervalMult = 1 + (1 - t) * 1.28;
     let maxAlive = Math.max(4, Math.floor(3 + 13 * t));
 
-    if (coarse) {
-      waveCountMult *= 0.78;
-      spawnIntervalMult *= 1.16;
-      maxAlive = Math.max(4, Math.floor(maxAlive * 0.76));
-    }
+    waveCountMult *= 0.78;
+    spawnIntervalMult *= 1.16;
+    maxAlive = Math.max(4, Math.floor(maxAlive * 0.76));
+
     if (diffId === 'easy') {
       waveCountMult *= 0.62;
       spawnIntervalMult *= 1.26;
@@ -1019,7 +1047,7 @@
   function updateSoftKeyboardVisibility() {
     const sk = dom.softKeyboard;
     if (!sk) return;
-    const coarse = window.matchMedia('(pointer: coarse)').matches;
+    const coarse = isCoarsePointer();
     const active = coarse && (
       state.screen === 'playing' ||
       state.screen === 'upgrade' ||
